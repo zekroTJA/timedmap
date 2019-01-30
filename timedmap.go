@@ -124,6 +124,7 @@ func (tm *TimedMap) Refresh(key interface{}, d time.Duration) error {
 	return nil
 }
 
+// Flush deletes all key-value pairs of the map.
 func (tm *TimedMap) Flush() {
 	tm.container = make(map[interface{}]*element)
 }
