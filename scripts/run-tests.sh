@@ -2,5 +2,4 @@
 
 go test \
     -v \
-    -cover \
-    -benchmem
+    -cover
