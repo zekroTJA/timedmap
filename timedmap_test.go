@@ -182,6 +182,21 @@ func TestSize(t *testing.T) {
 	tm.Flush()
 }
 
+func TestCallback(t *testing.T) {
+	var cbCalled bool
+	tm.Set(1, 3, 25*time.Millisecond, func(v interface{}) {
+		cbCalled = true
+	})
+
+	time.Sleep(50 * time.Millisecond)
+	if !cbCalled {
+		t.Fatal("callback has not been called")
+	}
+	if _, ok := tm.container[1]; ok {
+		t.Fatal("key was not deleted after expire time")
+	}
+}
+
 func TestStopCleaner(t *testing.T) {
 	tm.StopCleaner()
 }

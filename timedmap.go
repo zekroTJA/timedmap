@@ -15,9 +15,14 @@ type TimedMap struct {
 	cleanerStopChan chan bool
 }
 
+// element contains the actual value as interface type,
+// the thime when the value expires and an array of
+// callbacks, which will be executed when the element
+// expires.
 type element struct {
 	value   interface{}
 	expires time.Time
+	cbs     []func(value interface{})
 }
 
 // New creates and returns a new instance of TimedMap.
@@ -46,14 +51,27 @@ func New(cleanupTickTime time.Duration) *TimedMap {
 	return tm
 }
 
+// expireElement removes the specified key-value element
+// from the map and executes all defined callback functions
+func (tm *TimedMap) expireElement(k interface{}, v *element) {
+	for _, cb := range v.cbs {
+		cb(v.value)
+	}
+	delete(tm.container, k)
+}
+
+// cleanUp iterates trhough the map and expires all key-value
+// pairs which expire time after the current time
 func (tm *TimedMap) cleanUp() {
+	now := time.Now()
 	for k, v := range tm.container {
-		if time.Now().After(v.expires) {
-			delete(tm.container, k)
+		if now.After(v.expires) {
+			tm.expireElement(k, v)
 		}
 	}
 }
 
+// get returns an element object by key
 func (tm *TimedMap) get(key interface{}) *element {
 	v, ok := tm.container[key]
 	if !ok {
@@ -61,7 +79,7 @@ func (tm *TimedMap) get(key interface{}) *element {
 	}
 
 	if time.Now().After(v.expires) {
-		delete(tm.container, key)
+		tm.expireElement(key, v)
 		return nil
 	}
 
@@ -71,10 +89,11 @@ func (tm *TimedMap) get(key interface{}) *element {
 // Set appends a key-value pair to the mao ir sets the value of
 // a key. expiresAfter sets the expire time after the key-value pair
 // will automatically be removed from the map.
-func (tm *TimedMap) Set(key, value interface{}, expiresAfter time.Duration) {
+func (tm *TimedMap) Set(key, value interface{}, expiresAfter time.Duration, cb ...func(value interface{})) {
 	tm.container[key] = &element{
 		value:   value,
 		expires: time.Now().Add(expiresAfter),
+		cbs:     cb,
 	}
 }
 
