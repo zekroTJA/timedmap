@@ -199,4 +199,5 @@ func TestCallback(t *testing.T) {
 
 func TestStopCleaner(t *testing.T) {
 	tm.StopCleaner()
+	time.Sleep(10 * time.Millisecond)
 }
