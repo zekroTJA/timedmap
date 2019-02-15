@@ -37,15 +37,17 @@ import (
 )
 
 func main() {
-
+	// Create a timed map with a cleanup timer interval of 1 second
 	tm := timedmap.New(1 * time.Second)
-
+	// Set value of key "hey" to 213, which will expire after 3 seconds
 	tm.Set("hey", 213, 3*time.Second)
-
+	// Print the value of "hey"
 	printKeyVal(tm, "hey")
-
+	// Block the main thread for 5 seconds
+	// After this time, the key-value pair "hey": 213 has expired
 	time.Sleep(5 * time.Second)
-
+	// Now, this function should show that there is no key "hey"
+	// in the map, because it has been expired
 	printKeyVal(tm, "hey")
 }
 
