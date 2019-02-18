@@ -2,6 +2,7 @@ package timedmap
 
 import (
 	"errors"
+	"sync"
 	"time"
 )
 
@@ -9,6 +10,7 @@ import (
 // and a timer, which cleans the map in the set
 // tick durations from expired keys.
 type TimedMap struct {
+	mtx             sync.Mutex
 	cleanupTickTime time.Duration
 	container       map[interface{}]*element
 	cleaner         *time.Ticker
@@ -57,7 +59,10 @@ func (tm *TimedMap) expireElement(k interface{}, v *element) {
 	for _, cb := range v.cbs {
 		cb(v.value)
 	}
+
+	tm.mtx.Lock()
 	delete(tm.container, k)
+	tm.mtx.Unlock()
 }
 
 // cleanUp iterates trhough the map and expires all key-value
@@ -73,7 +78,10 @@ func (tm *TimedMap) cleanUp() {
 
 // get returns an element object by key
 func (tm *TimedMap) get(key interface{}) *element {
+	tm.mtx.Lock()
 	v, ok := tm.container[key]
+	tm.mtx.Unlock()
+
 	if !ok {
 		return nil
 	}
@@ -90,11 +98,13 @@ func (tm *TimedMap) get(key interface{}) *element {
 // a key. expiresAfter sets the expire time after the key-value pair
 // will automatically be removed from the map.
 func (tm *TimedMap) Set(key, value interface{}, expiresAfter time.Duration, cb ...func(value interface{})) {
+	tm.mtx.Lock()
 	tm.container[key] = &element{
 		value:   value,
 		expires: time.Now().Add(expiresAfter),
 		cbs:     cb,
 	}
+	tm.mtx.Unlock()
 }
 
 // GetValue returns an interface of the value of a key in the
@@ -128,7 +138,9 @@ func (tm *TimedMap) Contains(key interface{}) bool {
 
 // Remove deletes a key-value pair in the map.
 func (tm *TimedMap) Remove(key interface{}) {
+	tm.mtx.Lock()
 	delete(tm.container, key)
+	tm.mtx.Unlock()
 }
 
 // Refresh extends the expire time for a key-value pair
