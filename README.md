@@ -4,7 +4,8 @@
     <a href="https://godoc.org/github.com/zekroTJA/timedmap"><img src="https://godoc.org/github.com/zekroTJA/timedmap?status.svg" /></a>&nbsp;
     <a href="https://travis-ci.org/zekroTJA/timedmap" ><img src="https://travis-ci.org/zekroTJA/timedmap.svg?branch=master" /></a>&nbsp;
     <a href="https://coveralls.io/github/zekroTJA/timedmap"><img src="https://coveralls.io/repos/github/zekroTJA/timedmap/badge.svg" /></a>&nbsp;
-    <a href="https://goreportcard.com/report/github.com/zekroTJA/timedmap"><img src="https://goreportcard.com/badge/github.com/zekroTJA/timedmap"/></a>
+    <a href="https://goreportcard.com/report/github.com/zekroTJA/timedmap"><img src="https://goreportcard.com/badge/github.com/zekroTJA/timedmap"/></a>&nbsp;
+	<a href="https://github.com/avelino/awesome-go"><img src="https://awesome.re/mentioned-badge.svg"/></a>
 <br>
 </div>
 
