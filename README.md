@@ -66,7 +66,7 @@ func printKeyVal(tm *timedmap.TimedMap, key interface{}) {
 
 Further examples, you can find in the [example](examples) directory.
 
-If you want to see this package in a practcal use case scenario, please take a look at the rate limiter implementation of the REST API of [myrunes.com](https://myrunes.com), where I have used `timedmap` fro storing client-based limiter instances:  
+If you want to see this package in a practcal use case scenario, please take a look at the rate limiter implementation of the REST API of [myrunes.com](https://myrunes.com), where I have used `timedmap` for storing client-based limiter instances:  
 https://github.com/zekroTJA/myrunes/blob/master/internal/webserver/ratelimit.go
 
 ---
