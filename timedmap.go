@@ -6,15 +6,22 @@ import (
 	"time"
 )
 
+type callback func(value interface{})
+
 // TimedMap contains a map with all key-value pairs,
 // and a timer, which cleans the map in the set
 // tick durations from expired keys.
 type TimedMap struct {
 	mtx             sync.Mutex
+	container       map[keyWrap]*element
 	cleanupTickTime time.Duration
-	container       map[interface{}]*element
 	cleaner         *time.Ticker
 	cleanerStopChan chan bool
+}
+
+type keyWrap struct {
+	sec int
+	key interface{}
 }
 
 // element contains the actual value as interface type,
@@ -24,7 +31,7 @@ type TimedMap struct {
 type element struct {
 	value   interface{}
 	expires time.Time
-	cbs     []func(value interface{})
+	cbs     []callback
 }
 
 // New creates and returns a new instance of TimedMap.
@@ -33,7 +40,7 @@ type element struct {
 // deletes expired key-value pairs.
 func New(cleanupTickTime time.Duration) *TimedMap {
 	tm := &TimedMap{
-		container:       make(map[interface{}]*element),
+		container:       make(map[keyWrap]*element),
 		cleanerStopChan: make(chan bool),
 	}
 
@@ -53,65 +60,32 @@ func New(cleanupTickTime time.Duration) *TimedMap {
 	return tm
 }
 
-// expireElement removes the specified key-value element
-// from the map and executes all defined callback functions
-func (tm *TimedMap) expireElement(k interface{}, v *element) {
-	for _, cb := range v.cbs {
-		cb(v.value)
-	}
-
-	tm.mtx.Lock()
-	delete(tm.container, k)
-	tm.mtx.Unlock()
+// Section returns a sectioned subset of
+// the timed map with the given section
+// identifier i.
+func (tm *TimedMap) Section(i int) Section {
+	return newSection(tm, i)
 }
 
-// cleanUp iterates trhough the map and expires all key-value
-// pairs which expire time after the current time
-func (tm *TimedMap) cleanUp() {
-	now := time.Now()
-	for k, v := range tm.container {
-		if now.After(v.expires) {
-			tm.expireElement(k, v)
-		}
-	}
+// Ident returns the current sections ident.
+// In the case of the root object TimedMap,
+// this is always 0.
+func (tm *TimedMap) Ident() int {
+	return 0
 }
 
-// get returns an element object by key
-func (tm *TimedMap) get(key interface{}) *element {
-	tm.mtx.Lock()
-	v, ok := tm.container[key]
-	tm.mtx.Unlock()
-
-	if !ok {
-		return nil
-	}
-
-	if time.Now().After(v.expires) {
-		tm.expireElement(key, v)
-		return nil
-	}
-
-	return v
-}
-
-// Set appends a key-value pair to the mao ir sets the value of
+// Set appends a key-value pair to the map or sets the value of
 // a key. expiresAfter sets the expire time after the key-value pair
 // will automatically be removed from the map.
-func (tm *TimedMap) Set(key, value interface{}, expiresAfter time.Duration, cb ...func(value interface{})) {
-	tm.mtx.Lock()
-	tm.container[key] = &element{
-		value:   value,
-		expires: time.Now().Add(expiresAfter),
-		cbs:     cb,
-	}
-	tm.mtx.Unlock()
+func (tm *TimedMap) Set(key, value interface{}, expiresAfter time.Duration, cb ...callback) {
+	tm.set(key, 0, value, expiresAfter, cb...)
 }
 
 // GetValue returns an interface of the value of a key in the
 // map. The returned value is nil if there is no value to the
 // passed key or if the value was expired.
 func (tm *TimedMap) GetValue(key interface{}) interface{} {
-	v := tm.get(key)
+	v := tm.get(key, 0)
 	if v == nil {
 		return nil
 	}
@@ -122,7 +96,7 @@ func (tm *TimedMap) GetValue(key interface{}) interface{} {
 // If the key-value pair does not exist in the map or
 // was expired, this will return an error object.
 func (tm *TimedMap) GetExpires(key interface{}) (time.Time, error) {
-	v := tm.get(key)
+	v := tm.get(key, 0)
 	if v == nil {
 		return time.Time{}, errors.New("key not found")
 	}
@@ -133,31 +107,24 @@ func (tm *TimedMap) GetExpires(key interface{}) (time.Time, error) {
 // false will be returned, if there is no value to the
 // key or if the key-value pair was expired.
 func (tm *TimedMap) Contains(key interface{}) bool {
-	return tm.get(key) != nil
+	return tm.get(key, 0) != nil
 }
 
 // Remove deletes a key-value pair in the map.
 func (tm *TimedMap) Remove(key interface{}) {
-	tm.mtx.Lock()
-	delete(tm.container, key)
-	tm.mtx.Unlock()
+	tm.remove(key, 0)
 }
 
 // Refresh extends the expire time for a key-value pair
 // about the passed duration. If there is no value to
 // the key passed, this will return an error object.
 func (tm *TimedMap) Refresh(key interface{}, d time.Duration) error {
-	v := tm.get(key)
-	if v == nil {
-		return errors.New("key not found")
-	}
-	v.expires = v.expires.Add(d)
-	return nil
+	return tm.refresh(key, 0, d)
 }
 
 // Flush deletes all key-value pairs of the map.
 func (tm *TimedMap) Flush() {
-	tm.container = make(map[interface{}]*element)
+	tm.container = make(map[keyWrap]*element)
 }
 
 // Size returns the current number of key-value pairs
@@ -175,4 +142,96 @@ func (tm *TimedMap) StopCleaner() {
 		tm.cleanerStopChan <- true
 	}()
 	tm.cleaner.Stop()
+}
+
+// expireElement removes the specified key-value element
+// from the map and executes all defined callback functions
+func (tm *TimedMap) expireElement(key interface{}, sec int, v *element) {
+	for _, cb := range v.cbs {
+		cb(v.value)
+	}
+
+	k := keyWrap{
+		sec: sec,
+		key: key,
+	}
+
+	tm.mtx.Lock()
+	delete(tm.container, k)
+	tm.mtx.Unlock()
+}
+
+// cleanUp iterates trhough the map and expires all key-value
+// pairs which expire time after the current time
+func (tm *TimedMap) cleanUp() {
+	now := time.Now()
+	for k, v := range tm.container {
+		if now.After(v.expires) {
+			tm.expireElement(k.key, k.sec, v)
+		}
+	}
+}
+
+// set sets the value for a key and section with the
+// given expiration parameters
+func (tm *TimedMap) set(key interface{}, sec int, val interface{}, expiresAfter time.Duration, cb ...callback) {
+	k := keyWrap{
+		sec: sec,
+		key: key,
+	}
+
+	tm.mtx.Lock()
+	tm.container[k] = &element{
+		value:   val,
+		expires: time.Now().Add(expiresAfter),
+		cbs:     cb,
+	}
+	tm.mtx.Unlock()
+}
+
+// get returns an element object by key and section
+func (tm *TimedMap) get(key interface{}, sec int) *element {
+	k := keyWrap{
+		sec: sec,
+		key: key,
+	}
+
+	tm.mtx.Lock()
+	v, ok := tm.container[k]
+	tm.mtx.Unlock()
+
+	if !ok {
+		return nil
+	}
+
+	if time.Now().After(v.expires) {
+		tm.expireElement(key, sec, v)
+		return nil
+	}
+
+	return v
+}
+
+// remove removes an element from the map by giveb
+// key and section
+func (tm *TimedMap) remove(key interface{}, sec int) {
+	k := keyWrap{
+		sec: sec,
+		key: key,
+	}
+
+	tm.mtx.Lock()
+	delete(tm.container, k)
+	tm.mtx.Unlock()
+}
+
+// refresh extends the lifetime of the given key in the
+// given section by the duration d.
+func (tm *TimedMap) refresh(key interface{}, sec int, d time.Duration) error {
+	v := tm.get(key, sec)
+	if v == nil {
+		return errors.New("key not found")
+	}
+	v.expires = v.expires.Add(d)
+	return nil
 }

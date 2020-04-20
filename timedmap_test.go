@@ -27,10 +27,7 @@ func TestNew(t *testing.T) {
 
 func TestFlush(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		tm.container[i] = &element{
-			value:   1,
-			expires: time.Now().Add(time.Hour),
-		}
+		tm.set(i, 0, 1, time.Hour)
 	}
 	tm.Flush()
 	if s := len(tm.container); s > 0 {
@@ -43,13 +40,13 @@ func TestSet(t *testing.T) {
 	val := "tValSet"
 
 	tm.Set(key, val, 20*time.Millisecond)
-	if v, ok := tm.container[key]; !ok {
+	if v := tm.get(key, 0); v == nil {
 		t.Fatal("key was not set")
 	} else if v.value.(string) != val {
 		t.Fatal("value was not like set")
 	}
 	time.Sleep(40 * time.Millisecond)
-	if _, ok := tm.container[key]; ok {
+	if v := tm.get(key, 0); v != nil {
 		t.Fatal("key was not deleted after expire")
 	}
 
@@ -139,7 +136,7 @@ func TestRemove(t *testing.T) {
 	tm.Set(key, 1, time.Hour)
 	tm.Remove(key)
 
-	if _, ok := tm.container[key]; ok {
+	if v := tm.get(key, 0); v != nil {
 		t.Fatal("key still exists after remove")
 	}
 
@@ -159,12 +156,12 @@ func TestRefresh(t *testing.T) {
 	}
 
 	time.Sleep(30 * time.Millisecond)
-	if _, ok := tm.container[key]; !ok {
+	if v := tm.get(key, 0); v == nil {
 		t.Fatal("key was not refreshed")
 	}
 
 	time.Sleep(100 * time.Millisecond)
-	if _, ok := tm.container[key]; ok {
+	if v := tm.get(key, 0); v != nil {
 		t.Fatal("key was not deleted after refreshed time")
 	}
 
@@ -192,7 +189,7 @@ func TestCallback(t *testing.T) {
 	if !cbCalled {
 		t.Fatal("callback has not been called")
 	}
-	if _, ok := tm.container[1]; ok {
+	if v := tm.get(1, 0); v != nil {
 		t.Fatal("key was not deleted after expire time")
 	}
 }
