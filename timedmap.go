@@ -156,15 +156,17 @@ func (tm *TimedMap) expireElement(key interface{}, sec int, v *element) {
 		key: key,
 	}
 
-	tm.mtx.Lock()
 	delete(tm.container, k)
-	tm.mtx.Unlock()
 }
 
 // cleanUp iterates trhough the map and expires all key-value
 // pairs which expire time after the current time
 func (tm *TimedMap) cleanUp() {
 	now := time.Now()
+
+	tm.mtx.Lock()
+	defer tm.mtx.Unlock()
+
 	for k, v := range tm.container {
 		if now.After(v.expires) {
 			tm.expireElement(k.key, k.sec, v)
@@ -181,12 +183,13 @@ func (tm *TimedMap) set(key interface{}, sec int, val interface{}, expiresAfter 
 	}
 
 	tm.mtx.Lock()
+	defer tm.mtx.Unlock()
+
 	tm.container[k] = &element{
 		value:   val,
 		expires: time.Now().Add(expiresAfter),
 		cbs:     cb,
 	}
-	tm.mtx.Unlock()
 }
 
 // get returns an element object by key and section
@@ -221,8 +224,9 @@ func (tm *TimedMap) remove(key interface{}, sec int) {
 	}
 
 	tm.mtx.Lock()
+	defer tm.mtx.Unlock()
+
 	delete(tm.container, k)
-	tm.mtx.Unlock()
 }
 
 // refresh extends the lifetime of the given key in the
