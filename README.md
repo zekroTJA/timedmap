@@ -1,7 +1,7 @@
 <div align="center">
     <h1>~ timedmap ~</h1>
     <strong>A map which has expiring key-value pairs.</strong><br><br>
-    <a href="https://godoc.org/github.com/zekroTJA/timedmap"><img src="https://godoc.org/github.com/zekroTJA/timedmap?status.svg" /></a>&nbsp;
+    <a href="https://pkg.go.dev/github.com/zekroTJA/timedmap"><img src="https://godoc.org/github.com/zekroTJA/timedmap?status.svg" /></a>&nbsp;
     <a href="https://travis-ci.org/zekroTJA/timedmap" ><img src="https://travis-ci.org/zekroTJA/timedmap.svg?branch=master" /></a>&nbsp;
     <a href="https://coveralls.io/github/zekroTJA/timedmap"><img src="https://coveralls.io/repos/github/zekroTJA/timedmap/badge.svg" /></a>&nbsp;
     <a href="https://goreportcard.com/report/github.com/zekroTJA/timedmap"><img src="https://goreportcard.com/badge/github.com/zekroTJA/timedmap"/></a>&nbsp;
@@ -71,5 +71,5 @@ https://github.com/zekroTJA/myrunes/blob/master/internal/webserver/ratelimit.go
 
 ---
 
-Copyright (c) 2019 zekro Development (Ringo Hoffmann).  
+Copyright (c) 2020 zekro Development (Ringo Hoffmann).  
 Covered by MIT licence.
