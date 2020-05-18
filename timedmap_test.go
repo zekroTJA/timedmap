@@ -198,3 +198,28 @@ func TestStopCleaner(t *testing.T) {
 	tm.StopCleaner()
 	time.Sleep(10 * time.Millisecond)
 }
+
+func TestConcurrentReadWrite(t *testing.T) {
+	tm.Flush()
+
+	go func() {
+		for {
+			for i := 0; i < 100; i++ {
+				tm.Set(i, i, 2*time.Second)
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			for i := 0; i < 100; i++ {
+				v := tm.GetValue(i)
+				if v != i {
+					t.Fatalf("recovered value %d was not %d, like expected", v, i)
+				}
+			}
+		}
+	}()
+
+	time.Sleep(1 * time.Second)
+}
