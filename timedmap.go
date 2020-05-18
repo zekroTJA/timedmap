@@ -12,7 +12,7 @@ type callback func(value interface{})
 // and a timer, which cleans the map in the set
 // tick durations from expired keys.
 type TimedMap struct {
-	mtx             sync.Mutex
+	mtx             sync.RWMutex
 	container       map[keyWrap]*element
 	cleanupTickTime time.Duration
 	cleaner         *time.Ticker
@@ -199,9 +199,9 @@ func (tm *TimedMap) get(key interface{}, sec int) *element {
 		key: key,
 	}
 
-	tm.mtx.Lock()
+	tm.mtx.RLock()
 	v, ok := tm.container[k]
-	tm.mtx.Unlock()
+	tm.mtx.RUnlock()
 
 	if !ok {
 		return nil
