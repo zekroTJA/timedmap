@@ -269,3 +269,11 @@ func BenchmarkSetGetRemoveValues(b *testing.B) {
 		tm.Remove(n)
 	}
 }
+
+func BenchmarkSetGetSameKey(b *testing.B) {
+	tm := New(1 * time.Minute)
+	for n := 0; n < b.N; n++ {
+		tm.Set(1, n, 1*time.Hour)
+		tm.GetValue(1)
+	}
+}

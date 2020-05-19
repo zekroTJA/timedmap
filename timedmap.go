@@ -177,6 +177,14 @@ func (tm *TimedMap) cleanUp() {
 // set sets the value for a key and section with the
 // given expiration parameters
 func (tm *TimedMap) set(key interface{}, sec int, val interface{}, expiresAfter time.Duration, cb ...callback) {
+	// re-use element when existent on this key
+	if v := tm.getRaw(key, sec); v != nil {
+		v.value = val
+		v.expires = time.Now().Add(expiresAfter)
+		v.cbs = cb
+		return
+	}
+
 	k := keyWrap{
 		sec: sec,
 		key: key,
@@ -193,7 +201,25 @@ func (tm *TimedMap) set(key interface{}, sec int, val interface{}, expiresAfter 
 }
 
 // get returns an element object by key and section
+// if the value has not already expired
 func (tm *TimedMap) get(key interface{}, sec int) *element {
+	v := tm.getRaw(key, sec)
+
+	if v == nil {
+		return nil
+	}
+
+	if time.Now().After(v.expires) {
+		tm.expireElement(key, sec, v)
+		return nil
+	}
+
+	return v
+}
+
+// getRaw returns the raw element object by key,
+// not depending on expiration time
+func (tm *TimedMap) getRaw(key interface{}, sec int) *element {
 	k := keyWrap{
 		sec: sec,
 		key: key,
@@ -204,11 +230,6 @@ func (tm *TimedMap) get(key interface{}, sec int) *element {
 	tm.mtx.RUnlock()
 
 	if !ok {
-		return nil
-	}
-
-	if time.Now().After(v.expires) {
-		tm.expireElement(key, sec, v)
 		return nil
 	}
 
