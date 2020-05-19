@@ -9,14 +9,9 @@ const (
 	dCleanupTick = 10 * time.Millisecond
 )
 
-var tm *TimedMap
-
-func TestMain(m *testing.M) {
-	tm = New(dCleanupTick)
-	m.Run()
-}
-
 func TestNew(t *testing.T) {
+	tm := New(dCleanupTick)
+
 	if tm == nil {
 		t.Fatal("TimedMap was nil")
 	}
@@ -26,6 +21,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestFlush(t *testing.T) {
+	tm := New(dCleanupTick)
+
 	for i := 0; i < 10; i++ {
 		tm.set(i, 0, 1, time.Hour)
 	}
@@ -36,8 +33,10 @@ func TestFlush(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	key := "tKeySet"
-	val := "tValSet"
+	const key = "tKeySet"
+	const val = "tValSet"
+
+	tm := New(dCleanupTick)
 
 	tm.Set(key, val, 20*time.Millisecond)
 	if v := tm.get(key, 0); v == nil {
@@ -54,8 +53,10 @@ func TestSet(t *testing.T) {
 }
 
 func TestGetValue(t *testing.T) {
-	key := "tKeyGetVal"
-	val := "tValGetVal"
+	const key = "tKeyGetVal"
+	const val = "tValGetVal"
+
+	tm := New(dCleanupTick)
 
 	tm.Set(key, val, 50*time.Millisecond)
 
@@ -88,8 +89,10 @@ func TestGetValue(t *testing.T) {
 }
 
 func TestGetExpire(t *testing.T) {
-	key := "tKeyGetExp"
-	val := "tValGetExp"
+	const key = "tKeyGetExp"
+	const val = "tValGetExp"
+
+	tm := New(dCleanupTick)
 
 	tm.Set(key, val, 50*time.Millisecond)
 	ct := time.Now().Add(50 * time.Millisecond)
@@ -110,7 +113,9 @@ func TestGetExpire(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
-	key := "tKeyCont"
+	const key = "tKeyCont"
+
+	tm := New(dCleanupTick)
 
 	tm.Set(key, 1, 30*time.Millisecond)
 
@@ -131,7 +136,9 @@ func TestContains(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	key := "tKeyRem"
+	const key = "tKeyRem"
+
+	tm := New(dCleanupTick)
 
 	tm.Set(key, 1, time.Hour)
 	tm.Remove(key)
@@ -144,7 +151,9 @@ func TestRemove(t *testing.T) {
 }
 
 func TestRefresh(t *testing.T) {
-	key := "tKeyRef"
+	const key = "tKeyRef"
+
+	tm := New(dCleanupTick)
 
 	if err := tm.Refresh("keyNotExists", time.Hour); err == nil || err.Error() != "key not found" {
 		t.Fatalf("error on non existing key was %v != 'key not found'", err)
@@ -169,6 +178,8 @@ func TestRefresh(t *testing.T) {
 }
 
 func TestSize(t *testing.T) {
+	tm := New(dCleanupTick)
+
 	for i := 0; i < 25; i++ {
 		tm.Set(i, 1, 50*time.Millisecond)
 	}
@@ -180,6 +191,8 @@ func TestSize(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
+	tm := New(dCleanupTick)
+
 	var cbCalled bool
 	tm.Set(1, 3, 25*time.Millisecond, func(v interface{}) {
 		cbCalled = true
@@ -195,12 +208,14 @@ func TestCallback(t *testing.T) {
 }
 
 func TestStopCleaner(t *testing.T) {
+	tm := New(dCleanupTick)
+
 	tm.StopCleaner()
 	time.Sleep(10 * time.Millisecond)
 }
 
 func TestConcurrentReadWrite(t *testing.T) {
-	tm.Flush()
+	tm := New(dCleanupTick)
 
 	go func() {
 		for {
@@ -210,6 +225,10 @@ func TestConcurrentReadWrite(t *testing.T) {
 		}
 	}()
 
+	// Wait 10 mills before read cycle starts so that
+	// it does not start before the first values are
+	// set to the map.
+	time.Sleep(10 * time.Millisecond)
 	go func() {
 		for {
 			for i := 0; i < 100; i++ {
@@ -222,4 +241,31 @@ func TestConcurrentReadWrite(t *testing.T) {
 	}()
 
 	time.Sleep(1 * time.Second)
+}
+
+// ----------------------------------------------------------
+// --- BENCHMARKS ---
+
+func BenchmarkSetValues(b *testing.B) {
+	tm := New(1 * time.Minute)
+	for n := 0; n < b.N; n++ {
+		tm.Set(n, n, 1*time.Hour)
+	}
+}
+
+func BenchmarkSetGetValues(b *testing.B) {
+	tm := New(1 * time.Minute)
+	for n := 0; n < b.N; n++ {
+		tm.Set(n, n, 1*time.Hour)
+		tm.GetValue(n)
+	}
+}
+
+func BenchmarkSetGetRemoveValues(b *testing.B) {
+	tm := New(1 * time.Minute)
+	for n := 0; n < b.N; n++ {
+		tm.Set(n, n, 1*time.Hour)
+		tm.GetValue(n)
+		tm.Remove(n)
+	}
 }

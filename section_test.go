@@ -6,6 +6,8 @@ import (
 )
 
 func TestSectionFlush(t *testing.T) {
+	tm := New(dCleanupTick)
+
 	for i := 0; i < 10; i++ {
 		tm.set(i, 0, 1, time.Hour)
 	}
@@ -25,6 +27,8 @@ func TestSectionSet(t *testing.T) {
 	const key = "tKeySet"
 	const val = "tValSet"
 	const sec = 1
+
+	tm := New(dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -46,6 +50,8 @@ func TestSectionGetValue(t *testing.T) {
 	const key = "tKeyGetVal"
 	const val = "tValGetVal"
 	const sec = 1
+
+	tm := New(dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -84,6 +90,8 @@ func TestSectionGetExpire(t *testing.T) {
 	const val = "tValGetExp"
 	const sec = 1
 
+	tm := New(dCleanupTick)
+
 	s := tm.Section(sec)
 
 	s.Set(key, val, 50*time.Millisecond)
@@ -107,6 +115,8 @@ func TestSectionGetExpire(t *testing.T) {
 func TestSectionContains(t *testing.T) {
 	const key = "tKeyCont"
 	const sec = 1
+
+	tm := New(dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -132,6 +142,8 @@ func TestSectionRemove(t *testing.T) {
 	const key = "tKeyRem"
 	const sec = 1
 
+	tm := New(dCleanupTick)
+
 	s := tm.Section(sec)
 
 	s.Set(key, 1, time.Hour)
@@ -147,6 +159,8 @@ func TestSectionRemove(t *testing.T) {
 func TestSectionRefresh(t *testing.T) {
 	const key = "tKeyRef"
 	const sec = 1
+
+	tm := New(dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -173,6 +187,8 @@ func TestSectionRefresh(t *testing.T) {
 }
 
 func TestSectionSize(t *testing.T) {
+	tm := New(dCleanupTick)
+
 	for i := 0; i < 20; i++ {
 		tm.set(i, 0, 1, 50*time.Millisecond)
 	}
@@ -187,6 +203,8 @@ func TestSectionSize(t *testing.T) {
 }
 
 func TestSectionCallback(t *testing.T) {
+	tm := New(dCleanupTick)
+
 	var cbCalled bool
 	tm.Section(1).Set(1, 3, 25*time.Millisecond, func(v interface{}) {
 		cbCalled = true
