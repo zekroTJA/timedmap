@@ -34,12 +34,11 @@ func main() {
 }
 
 func printKeyVal(tm *timedmap.TimedMap, key interface{}) {
-	d := tm.GetValue(key)
-	if d == nil {
+	d, ok := tm.GetValue(key).(int)
+	if !ok {
 		log.Println("data expired")
 		return
 	}
 
-	dInt := d.(int)
-	log.Printf("%v = %d\n", key, dInt)
+	log.Printf("%v = %d\n", key, d)
 }
