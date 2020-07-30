@@ -27,6 +27,11 @@ type Section interface {
 	// was expired, this will return an error object.
 	GetExpires(key interface{}) (time.Time, error)
 
+	// SetExpires sets the expire time for a key-value
+	// pair to the passed duration. If there is no value
+	// to the key passed , this will return an error.
+	SetExpires(key interface{}, d time.Duration) error
+
 	// Contains returns true, if the key exists in the map.
 	// false will be returned, if there is no value to the
 	// key or if the key-value pair was expired.
@@ -37,7 +42,7 @@ type Section interface {
 
 	// Refresh extends the expire time for a key-value pair
 	// about the passed duration. If there is no value to
-	// the key passed, this will return an error object.
+	// the key passed, this will return an error.
 	Refresh(key interface{}, d time.Duration) error
 
 	// Flush deletes all key-value pairs of the section
@@ -88,6 +93,10 @@ func (s *section) GetExpires(key interface{}) (time.Time, error) {
 		return time.Time{}, errors.New("key not found")
 	}
 	return v.expires, nil
+}
+
+func (s *section) SetExpires(key interface{}, d time.Duration) error {
+	return s.tm.setExpire(key, s.sec, d)
 }
 
 func (s *section) Contains(key interface{}) bool {

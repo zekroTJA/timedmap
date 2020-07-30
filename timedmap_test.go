@@ -112,6 +112,33 @@ func TestGetExpire(t *testing.T) {
 	tm.Flush()
 }
 
+func TestSetExpire(t *testing.T) {
+	const key = "tKeyRef"
+
+	tm := New(dCleanupTick)
+
+	if err := tm.Refresh("keyNotExists", time.Hour); err == nil || err.Error() != "key not found" {
+		t.Fatalf("error on non existing key was %v != 'key not found'", err)
+	}
+
+	tm.Set(key, 1, 12*time.Millisecond)
+	if err := tm.SetExpire(key, 50*time.Millisecond); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(30 * time.Millisecond)
+	if v := tm.get(key, 0); v == nil {
+		t.Fatal("key was not refreshed")
+	}
+
+	time.Sleep(52 * time.Millisecond)
+	if v := tm.get(key, 0); v != nil {
+		t.Fatal("key was not deleted after refreshed time")
+	}
+
+	tm.Flush()
+}
+
 func TestContains(t *testing.T) {
 	const key = "tKeyCont"
 

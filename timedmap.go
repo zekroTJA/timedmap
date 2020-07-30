@@ -103,6 +103,13 @@ func (tm *TimedMap) GetExpires(key interface{}) (time.Time, error) {
 	return v.expires, nil
 }
 
+// SetExpires sets the expire time for a key-value
+// pair to the passed duration. If there is no value
+// to the key passed , this will return an error.
+func (tm *TimedMap) SetExpire(key interface{}, d time.Duration) error {
+	return tm.setExpire(key, 0, d)
+}
+
 // Contains returns true, if the key exists in the map.
 // false will be returned, if there is no value to the
 // key or if the key-value pair was expired.
@@ -258,5 +265,16 @@ func (tm *TimedMap) refresh(key interface{}, sec int, d time.Duration) error {
 		return errors.New("key not found")
 	}
 	v.expires = v.expires.Add(d)
+	return nil
+}
+
+// setExpire sets the lifetime of the given key in the
+// given section to the duration d.
+func (tm *TimedMap) setExpire(key interface{}, sec int, d time.Duration) error {
+	v := tm.get(key, sec)
+	if v == nil {
+		return errors.New("key not found")
+	}
+	v.expires = time.Now().Add(d)
 	return nil
 }
