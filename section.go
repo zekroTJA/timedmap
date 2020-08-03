@@ -1,7 +1,6 @@
 package timedmap
 
 import (
-	"errors"
 	"time"
 )
 
@@ -90,7 +89,7 @@ func (s *section) GetValue(key interface{}) interface{} {
 func (s *section) GetExpires(key interface{}) (time.Time, error) {
 	v := s.tm.get(key, s.sec)
 	if v == nil {
-		return time.Time{}, errors.New("key not found")
+		return time.Time{}, ErrKeyNotFound
 	}
 	return v.expires, nil
 }

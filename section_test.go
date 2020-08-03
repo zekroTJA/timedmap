@@ -97,7 +97,7 @@ func TestSectionGetExpire(t *testing.T) {
 	s.Set(key, val, 50*time.Millisecond)
 	ct := time.Now().Add(50 * time.Millisecond)
 
-	if _, err := s.GetExpires("keyNotExists"); err.Error() != "key not found" {
+	if _, err := s.GetExpires("keyNotExists"); err != ErrKeyNotFound {
 		t.Fatal("err was not 'key not found': ", err)
 	}
 
@@ -120,8 +120,9 @@ func TestSectionSetExpire(t *testing.T) {
 
 	s := tm.Section(sec)
 
-	if err := s.Refresh("keyNotExists", time.Hour); err == nil || err.Error() != "key not found" {
-		t.Fatalf("error on non existing key was %v != 'key not found'", err)
+	if err := tm.SetExpire("notExistentKey", 1*time.Second); err != ErrKeyNotFound {
+		t.Errorf("returned error should have been '%s', but was '%s'",
+			ErrKeyNotFound.Error(), err.Error())
 	}
 
 	s.Set(key, 1, 12*time.Millisecond)
@@ -194,7 +195,7 @@ func TestSectionRefresh(t *testing.T) {
 
 	s := tm.Section(sec)
 
-	if err := s.Refresh("keyNotExists", time.Hour); err == nil || err.Error() != "key not found" {
+	if err := s.Refresh("keyNotExists", time.Hour); err == nil || err != ErrKeyNotFound {
 		t.Fatalf("error on non existing key was %v != 'key not found'", err)
 	}
 
