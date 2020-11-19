@@ -1,7 +1,6 @@
 package timedmap
 
 import (
-	"errors"
 	"sync"
 	"time"
 )
@@ -108,7 +107,7 @@ func (tm *TimedMap) GetValue(key interface{}) interface{} {
 func (tm *TimedMap) GetExpires(key interface{}) (time.Time, error) {
 	v := tm.get(key, 0)
 	if v == nil {
-		return time.Time{}, errors.New("key not found")
+		return time.Time{}, ErrKeyNotFound
 	}
 	return v.expires, nil
 }
@@ -274,7 +273,7 @@ func (tm *TimedMap) remove(key interface{}, sec int) {
 func (tm *TimedMap) refresh(key interface{}, sec int, d time.Duration) error {
 	v := tm.get(key, sec)
 	if v == nil {
-		return errors.New("key not found")
+		return ErrKeyNotFound
 	}
 	v.expires = v.expires.Add(d)
 	return nil
@@ -285,7 +284,7 @@ func (tm *TimedMap) refresh(key interface{}, sec int, d time.Duration) error {
 func (tm *TimedMap) setExpire(key interface{}, sec int, d time.Duration) error {
 	v := tm.get(key, sec)
 	if v == nil {
-		return errors.New("key not found")
+		return ErrKeyNotFound
 	}
 	v.expires = time.Now().Add(d)
 	return nil

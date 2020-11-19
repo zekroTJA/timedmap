@@ -97,7 +97,7 @@ func TestGetExpire(t *testing.T) {
 	tm.Set(key, val, 50*time.Millisecond)
 	ct := time.Now().Add(50 * time.Millisecond)
 
-	if _, err := tm.GetExpires("keyNotExists"); err.Error() != "key not found" {
+	if _, err := tm.GetExpires("keyNotExists"); err != ErrKeyNotFound {
 		t.Fatal("err was not 'key not found': ", err)
 	}
 
@@ -117,8 +117,13 @@ func TestSetExpire(t *testing.T) {
 
 	tm := New(dCleanupTick)
 
-	if err := tm.Refresh("keyNotExists", time.Hour); err == nil || err.Error() != "key not found" {
+	if err := tm.Refresh("keyNotExists", time.Hour); err == nil || err != ErrKeyNotFound {
 		t.Fatalf("error on non existing key was %v != 'key not found'", err)
+	}
+
+	if err := tm.SetExpire("notExistentKey", 1*time.Second); err != ErrKeyNotFound {
+		t.Errorf("returned error should have been '%s', but was '%s'",
+			ErrKeyNotFound.Error(), err.Error())
 	}
 
 	tm.Set(key, 1, 12*time.Millisecond)
@@ -182,7 +187,7 @@ func TestRefresh(t *testing.T) {
 
 	tm := New(dCleanupTick)
 
-	if err := tm.Refresh("keyNotExists", time.Hour); err == nil || err.Error() != "key not found" {
+	if err := tm.Refresh("keyNotExists", time.Hour); err == nil || err != ErrKeyNotFound {
 		t.Fatalf("error on non existing key was %v != 'key not found'", err)
 	}
 
@@ -286,6 +291,21 @@ func TestExternalTicker(t *testing.T) {
 	time.Sleep(40 * time.Millisecond)
 	if v := tm.get(key, 0); v != nil {
 		t.Fatal("key was not deleted after expire")
+	}
+}
+
+func TestBeforeCleanup(t *testing.T) {
+	const key, value = 1, 2
+
+	tm := New(1 * time.Hour)
+
+	tm.Set(key, value, 5*time.Millisecond)
+
+	time.Sleep(10 * time.Millisecond)
+
+	_, ok := tm.GetValue(key).(int)
+	if ok {
+		t.Fatal("value got recovered but should have been expired")
 	}
 }
 
