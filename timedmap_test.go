@@ -270,6 +270,25 @@ func TestConcurrentReadWrite(t *testing.T) {
 	time.Sleep(1 * time.Second)
 }
 
+func TestExternalTicker(t *testing.T) {
+	const key = "tKeySet"
+	const val = "tValSet"
+
+	ticker := time.NewTicker(dCleanupTick)
+	tm := New(0, ticker.C)
+
+	tm.Set(key, val, 20*time.Millisecond)
+	if v := tm.get(key, 0); v == nil {
+		t.Fatal("key was not set")
+	} else if v.value.(string) != val {
+		t.Fatal("value was not like set")
+	}
+	time.Sleep(40 * time.Millisecond)
+	if v := tm.get(key, 0); v != nil {
+		t.Fatal("key was not deleted after expire")
+	}
+}
+
 // ----------------------------------------------------------
 // --- BENCHMARKS ---
 

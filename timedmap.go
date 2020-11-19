@@ -38,18 +38,28 @@ type element struct {
 // The passed cleanupTickTime will be passed to the
 // cleanup Timer, which iterates through the map and
 // deletes expired key-value pairs.
-func New(cleanupTickTime time.Duration) *TimedMap {
+//
+// Optionally, you can also pass a custom <-chan time.Time
+// which controls the cleanup cycle if you want to use
+// a single syncronyzed timer or somethign like that.
+func New(cleanupTickTime time.Duration, tickerChan ...<-chan time.Time) *TimedMap {
 	tm := &TimedMap{
 		container:       make(map[keyWrap]*element),
 		cleanerStopChan: make(chan bool),
 	}
 
-	tm.cleaner = time.NewTicker(cleanupTickTime)
+	var tc <-chan time.Time
+	if len(tickerChan) > 0 {
+		tc = tickerChan[0]
+	} else {
+		tm.cleaner = time.NewTicker(cleanupTickTime)
+		tc = tm.cleaner.C
+	}
 
 	go func() {
 		for {
 			select {
-			case <-tm.cleaner.C:
+			case <-tc:
 				tm.cleanUp()
 			case <-tm.cleanerStopChan:
 				break
@@ -148,7 +158,9 @@ func (tm *TimedMap) StopCleaner() {
 	go func() {
 		tm.cleanerStopChan <- true
 	}()
-	tm.cleaner.Stop()
+	if tm.cleaner != nil {
+		tm.cleaner.Stop()
+	}
 }
 
 // expireElement removes the specified key-value element
