@@ -1,6 +1,7 @@
 package timedmap
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -273,6 +274,27 @@ func TestConcurrentReadWrite(t *testing.T) {
 	}()
 
 	time.Sleep(1 * time.Second)
+}
+
+func TestGetExpiredConcurrent(t *testing.T) {
+	tm := New(dCleanupTick)
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 50_000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tm.Set(1, 1, 0)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tm.GetValue(1)
+		}()
+	}
+
+	wg.Wait()
 }
 
 func TestExternalTicker(t *testing.T) {

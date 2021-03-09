@@ -29,7 +29,7 @@ jobs:
         go get -v -t -d ./...
 
     - name: Run Tests
-      run: go test -v -cover ./...
+      run: go test -v -timeout 300s -cover ./...
     
     - name: Run Benchmarks
-      run: go test -bench=. -benchmem
+      run: go test -timeout 300s -bench=. -benchmem
