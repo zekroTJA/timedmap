@@ -280,7 +280,7 @@ func TestGetExpiredConcurrent(t *testing.T) {
 	tm := New(dCleanupTick)
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < 50_000; i++ {
+	for i := 0; i < 50000; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
