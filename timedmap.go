@@ -228,6 +228,8 @@ func (tm *TimedMap) get(key interface{}, sec int) *element {
 	}
 
 	if time.Now().After(v.expires) {
+		tm.mtx.Lock()
+		defer tm.mtx.Unlock()
 		tm.expireElement(key, sec, v)
 		return nil
 	}
