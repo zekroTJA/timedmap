@@ -41,7 +41,7 @@ type element struct {
 //
 // Optionally, you can also pass a custom <-chan time.Time
 // which controls the cleanup cycle if you want to use
-// a single syncronyzed timer or somethign like that.
+// a single syncronyzed timer or something like that.
 func New(cleanupTickTime time.Duration, tickerChan ...<-chan time.Time) *TimedMap {
 	tm := &TimedMap{
 		container:       make(map[keyWrap]*element),
