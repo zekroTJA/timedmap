@@ -13,6 +13,7 @@ type callback func(value interface{})
 type TimedMap struct {
 	mtx             sync.RWMutex
 	container       map[keyWrap]*element
+	elementPool     *sync.Pool
 	cleanupTickTime time.Duration
 	cleaner         *time.Ticker
 	cleanerStopChan chan bool
@@ -45,6 +46,11 @@ func New(cleanupTickTime time.Duration, tickerChan ...<-chan time.Time) *TimedMa
 	tm := &TimedMap{
 		container:       make(map[keyWrap]*element),
 		cleanerStopChan: make(chan bool),
+		elementPool: &sync.Pool{
+			New: func() interface{} {
+				return new(element)
+			},
+		},
 	}
 
 	var tc <-chan time.Time
@@ -140,7 +146,13 @@ func (tm *TimedMap) Refresh(key interface{}, d time.Duration) error {
 
 // Flush deletes all key-value pairs of the map.
 func (tm *TimedMap) Flush() {
-	tm.container = make(map[keyWrap]*element)
+	tm.mtx.Lock()
+	defer tm.mtx.Unlock()
+
+	for k, v := range tm.container {
+		tm.elementPool.Put(v)
+		delete(tm.container, k)
+	}
 }
 
 // Size returns the current number of key-value pairs
@@ -174,6 +186,7 @@ func (tm *TimedMap) expireElement(key interface{}, sec int, v *element) {
 		key: key,
 	}
 
+	tm.elementPool.Put(v)
 	delete(tm.container, k)
 }
 
@@ -211,11 +224,11 @@ func (tm *TimedMap) set(key interface{}, sec int, val interface{}, expiresAfter 
 	tm.mtx.Lock()
 	defer tm.mtx.Unlock()
 
-	tm.container[k] = &element{
-		value:   val,
-		expires: time.Now().Add(expiresAfter),
-		cbs:     cb,
-	}
+	v := tm.elementPool.Get().(*element)
+	v.value = val
+	v.expires = time.Now().Add(expiresAfter)
+	v.cbs = cb
+	tm.container[k] = v
 }
 
 // get returns an element object by key and section
@@ -267,6 +280,12 @@ func (tm *TimedMap) remove(key interface{}, sec int) {
 	tm.mtx.Lock()
 	defer tm.mtx.Unlock()
 
+	v, ok := tm.container[k]
+	if !ok {
+		return
+	}
+
+	tm.elementPool.Put(v)
 	delete(tm.container, k)
 }
 
