@@ -51,6 +51,10 @@ type Section interface {
 	// Size returns the current number of key-value pairs
 	// existent in the section of the map.
 	Size() (i int)
+
+	// Snapshot returns a new map which represents the
+	// current key-value state of the internal container.
+	Snapshot() map[interface{}]interface{}
 }
 
 // section wraps access to a specific
@@ -125,4 +129,8 @@ func (s *section) Size() (i int) {
 		}
 	}
 	return
+}
+
+func (s *section) Snapshot() map[interface{}]interface{} {
+	return s.tm.getSnapshot(s.sec)
 }

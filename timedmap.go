@@ -79,6 +79,9 @@ func New(cleanupTickTime time.Duration, tickerChan ...<-chan time.Time) *TimedMa
 // the timed map with the given section
 // identifier i.
 func (tm *TimedMap) Section(i int) Section {
+	if i == 0 {
+		return tm
+	}
 	return newSection(tm, i)
 }
 
@@ -118,10 +121,16 @@ func (tm *TimedMap) GetExpires(key interface{}) (time.Time, error) {
 	return v.expires, nil
 }
 
+// SetExpire is deprecated.
+// Please use SetExpire instead.
+func (tm *TimedMap) SetExpire(key interface{}, d time.Duration) error {
+	return tm.setExpire(key, 0, d)
+}
+
 // SetExpires sets the expire time for a key-value
 // pair to the passed duration. If there is no value
 // to the key passed , this will return an error.
-func (tm *TimedMap) SetExpire(key interface{}, d time.Duration) error {
+func (tm *TimedMap) SetExpires(key interface{}, d time.Duration) error {
 	return tm.setExpire(key, 0, d)
 }
 
@@ -172,6 +181,12 @@ func (tm *TimedMap) StopCleaner() {
 	if tm.cleaner != nil {
 		tm.cleaner.Stop()
 	}
+}
+
+// Snapshot returns a new map which represents the
+// current key-value state of the internal container.
+func (tm *TimedMap) Snapshot() map[interface{}]interface{} {
+	return tm.getSnapshot(0)
 }
 
 // expireElement removes the specified key-value element
@@ -309,4 +324,19 @@ func (tm *TimedMap) setExpire(key interface{}, sec int, d time.Duration) error {
 	}
 	v.expires = time.Now().Add(d)
 	return nil
+}
+
+func (tm *TimedMap) getSnapshot(sec int) (m map[interface{}]interface{}) {
+	m = make(map[interface{}]interface{})
+
+	tm.mtx.RLock()
+	defer tm.mtx.RUnlock()
+
+	for k, v := range tm.container {
+		if k.sec == sec {
+			m[k.key] = v.value
+		}
+	}
+
+	return
 }
