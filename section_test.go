@@ -3,24 +3,30 @@ package timedmap
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSectionFlush(t *testing.T) {
 	tm := New(dCleanupTick)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		tm.set(i, 0, 1, time.Hour)
 	}
 	for i := 0; i < 10; i++ {
 		tm.set(i, 1, 1, time.Hour)
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 12; i++ {
 		tm.set(i, 2, 1, time.Hour)
 	}
 	tm.Section(2).Flush()
-	if s := len(tm.container); s > 20 {
-		t.Fatalf("size was %d > 20", s)
-	}
+	assert.EqualValues(t, 15, len(tm.container))
+
+	tm.Section(1).Flush()
+	assert.EqualValues(t, 5, len(tm.container))
+
+	tm.Section(0).Flush()
+	assert.EqualValues(t, 0, len(tm.container))
 }
 
 func TestSectionSet(t *testing.T) {
@@ -33,17 +39,10 @@ func TestSectionSet(t *testing.T) {
 	s := tm.Section(sec)
 
 	s.Set(key, val, 20*time.Millisecond)
-	if v := tm.get(key, sec); v == nil {
-		t.Fatal("key was not set")
-	} else if v.value.(string) != val {
-		t.Fatal("value was not like set")
-	}
-	time.Sleep(40 * time.Millisecond)
-	if v := tm.get(key, sec); v != nil {
-		t.Fatal("key was not deleted after expire")
-	}
+	assert.Equal(t, val, tm.get(key, sec).value)
 
-	tm.Flush()
+	time.Sleep(40 * time.Millisecond)
+	assert.Nil(t, tm.get(key, sec))
 }
 
 func TestSectionGetValue(t *testing.T) {
@@ -57,32 +56,17 @@ func TestSectionGetValue(t *testing.T) {
 
 	s.Set(key, val, 50*time.Millisecond)
 
-	if s.GetValue("keyNotExists") != nil {
-		t.Fatal("non existent key was not nil")
-	}
+	assert.Nil(t, s.GetValue("keyNotExists"))
 
-	v := s.GetValue(key)
-	if v == nil {
-		t.Fatal("value was nil")
-	}
-	if vStr := v.(string); vStr != val {
-		t.Fatalf("got value was %s != 'tValGetVal'", vStr)
-	}
+	assert.Equal(t, val, s.GetValue(key))
 
 	time.Sleep(60 * time.Millisecond)
 
-	v = s.GetValue(key)
-	if v != nil {
-		t.Fatal("key was not deleted after expiration time")
-	}
+	assert.Nil(t, s.GetValue(key))
 
 	s.Set(key, val, 1*time.Microsecond)
 	time.Sleep(2 * time.Millisecond)
-	if s.GetValue(key) != nil {
-		t.Fatal("expired key was not removed by get func")
-	}
-
-	tm.Flush()
+	assert.Nil(t, s.GetValue(key))
 }
 
 func TestSectionGetExpire(t *testing.T) {
@@ -97,17 +81,12 @@ func TestSectionGetExpire(t *testing.T) {
 	s.Set(key, val, 50*time.Millisecond)
 	ct := time.Now().Add(50 * time.Millisecond)
 
-	if _, err := s.GetExpires("keyNotExists"); err != ErrKeyNotFound {
-		t.Fatal("err was not 'key not found': ", err)
-	}
+	_, err := s.GetExpires("keyNotExists")
+	assert.ErrorIs(t, err, ErrKeyNotFound)
 
 	exp, err := s.GetExpires(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d := ct.Sub(exp); d > 1*time.Millisecond {
-		t.Fatalf("expire date diff was %d > 1 millisecond", d)
-	}
+	assert.Nil(t, err)
+	assert.Less(t, ct.Sub(exp), 1*time.Millisecond)
 
 	tm.Flush()
 }
@@ -126,21 +105,13 @@ func TestSectionSetExpire(t *testing.T) {
 	}
 
 	s.Set(key, 1, 12*time.Millisecond)
-	if err := s.SetExpires(key, 50*time.Millisecond); err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, s.SetExpires(key, 50*time.Millisecond))
 
 	time.Sleep(30 * time.Millisecond)
-	if v := tm.get(key, sec); v == nil {
-		t.Fatal("key was not refreshed")
-	}
+	assert.NotNil(t, tm.get(key, sec))
 
 	time.Sleep(51 * time.Millisecond)
-	if v := tm.get(key, sec); v != nil {
-		t.Fatal("key was not deleted after refreshed time")
-	}
-
-	tm.Flush()
+	assert.Nil(t, tm.get(key, sec))
 }
 
 func TestSectionContains(t *testing.T) {
@@ -153,20 +124,11 @@ func TestSectionContains(t *testing.T) {
 
 	s.Set(key, 1, 30*time.Millisecond)
 
-	if s.Contains("keyNotExists") {
-		t.Fatal("non existing key was detected as containing")
-	}
-
-	if !s.Contains(key) {
-		t.Fatal("containing key was detected as not containing")
-	}
+	assert.False(t, s.Contains("keyNotExists"))
+	assert.True(t, s.Contains(key))
 
 	time.Sleep(50 * time.Millisecond)
-	if s.Contains(key) {
-		t.Fatal("expired key was detected as containing")
-	}
-
-	tm.Flush()
+	assert.False(t, s.Contains(key))
 }
 
 func TestSectionRemove(t *testing.T) {
@@ -179,12 +141,7 @@ func TestSectionRemove(t *testing.T) {
 
 	s.Set(key, 1, time.Hour)
 	s.Remove(key)
-
-	if v := tm.get(key, sec); v != nil {
-		t.Fatal("key still exists after remove")
-	}
-
-	tm.Flush()
+	assert.Nil(t, tm.get(key, sec))
 }
 
 func TestSectionRefresh(t *testing.T) {
@@ -195,26 +152,16 @@ func TestSectionRefresh(t *testing.T) {
 
 	s := tm.Section(sec)
 
-	if err := s.Refresh("keyNotExists", time.Hour); err == nil || err != ErrKeyNotFound {
-		t.Fatalf("error on non existing key was %v != 'key not found'", err)
-	}
+	assert.ErrorIs(t, s.Refresh("keyNotExists", time.Hour), ErrKeyNotFound)
 
 	s.Set(key, 1, 12*time.Millisecond)
-	if err := s.Refresh(key, 50*time.Millisecond); err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, s.Refresh(key, 50*time.Millisecond))
 
 	time.Sleep(30 * time.Millisecond)
-	if v := tm.get(key, sec); v == nil {
-		t.Fatal("key was not refreshed")
-	}
+	assert.NotNil(t, tm.get(key, sec))
 
 	time.Sleep(100 * time.Millisecond)
-	if v := tm.get(key, sec); v != nil {
-		t.Fatal("key was not deleted after refreshed time")
-	}
-
-	tm.Flush()
+	assert.Nil(t, tm.get(key, sec))
 }
 
 func TestSectionSize(t *testing.T) {
@@ -226,26 +173,19 @@ func TestSectionSize(t *testing.T) {
 	for i := 0; i < 25; i++ {
 		tm.set(i, 1, 1, 50*time.Millisecond)
 	}
-	if s := tm.Section(1).Size(); s != 25 {
-		t.Fatalf("size was %d != 25", s)
-	}
-
-	tm.Flush()
+	assert.EqualValues(t, 25, tm.Section(1).Size())
 }
 
 func TestSectionCallback(t *testing.T) {
+	cb := new(CB)
+	cb.On("Cb").Return()
+
 	tm := New(dCleanupTick)
 
-	var cbCalled bool
-	tm.Section(1).Set(1, 3, 25*time.Millisecond, func(v interface{}) {
-		cbCalled = true
-	})
+	tm.Section(1).Set(1, 3, 25*time.Millisecond, cb.Cb)
 
 	time.Sleep(50 * time.Millisecond)
-	if !cbCalled {
-		t.Fatal("callback has not been called")
-	}
-	if v := tm.get(1, 0); v != nil {
-		t.Fatal("key was not deleted after expire time")
-	}
+	assert.Nil(t, tm.get(1, 0))
+	cb.AssertCalled(t, "Cb")
+	assert.EqualValues(t, 3, cb.TestData().Get("v").Int())
 }

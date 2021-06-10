@@ -175,9 +175,7 @@ func (tm *TimedMap) Size() int {
 // where TimedMap is used that the data can be cleaned
 // up correctly.
 func (tm *TimedMap) StopCleaner() {
-	go func() {
-		tm.cleanerStopChan <- true
-	}()
+	tm.cleanerStopChan <- true
 	if tm.cleaner != nil {
 		tm.cleaner.Stop()
 	}

@@ -4,6 +4,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 const (
@@ -13,12 +16,8 @@ const (
 func TestNew(t *testing.T) {
 	tm := New(dCleanupTick)
 
-	if tm == nil {
-		t.Fatal("TimedMap was nil")
-	}
-	if s := len(tm.container); s != 0 {
-		t.Fatalf("map size was %d != 0", s)
-	}
+	assert.NotNil(t, tm)
+	assert.EqualValues(t, 0, len(tm.container))
 }
 
 func TestFlush(t *testing.T) {
@@ -27,10 +26,9 @@ func TestFlush(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		tm.set(i, 0, 1, time.Hour)
 	}
+	assert.EqualValues(t, 10, len(tm.container))
 	tm.Flush()
-	if s := len(tm.container); s > 0 {
-		t.Fatalf("size was %d > 0", s)
-	}
+	assert.EqualValues(t, 0, len(tm.container))
 }
 
 func TestSet(t *testing.T) {
@@ -45,12 +43,10 @@ func TestSet(t *testing.T) {
 	} else if v.value.(string) != val {
 		t.Fatal("value was not like set")
 	}
-	time.Sleep(40 * time.Millisecond)
-	if v := tm.get(key, 0); v != nil {
-		t.Fatal("key was not deleted after expire")
-	}
+	assert.Equal(t, val, tm.get(key, 0).value)
 
-	tm.Flush()
+	time.Sleep(40 * time.Millisecond)
+	assert.Nil(t, tm.get(key, 0))
 }
 
 func TestGetValue(t *testing.T) {
@@ -60,33 +56,17 @@ func TestGetValue(t *testing.T) {
 	tm := New(dCleanupTick)
 
 	tm.Set(key, val, 50*time.Millisecond)
+	assert.Nil(t, tm.GetValue("keyNotExists"))
 
-	if tm.GetValue("keyNotExists") != nil {
-		t.Fatal("non existent key was not nil")
-	}
-
-	v := tm.GetValue(key)
-	if v == nil {
-		t.Fatal("value was nil")
-	}
-	if vStr := v.(string); vStr != val {
-		t.Fatalf("got value was %s != 'tValGetVal'", vStr)
-	}
+	assert.Equal(t, val, tm.GetValue(key))
 
 	time.Sleep(60 * time.Millisecond)
 
-	v = tm.GetValue(key)
-	if v != nil {
-		t.Fatal("key was not deleted after expiration time")
-	}
+	assert.Nil(t, tm.GetValue(key))
 
 	tm.Set(key, val, 1*time.Microsecond)
 	time.Sleep(2 * time.Millisecond)
-	if tm.GetValue(key) != nil {
-		t.Fatal("expired key was not removed by get func")
-	}
-
-	tm.Flush()
+	assert.Nil(t, tm.GetValue(key))
 }
 
 func TestGetExpire(t *testing.T) {
@@ -98,19 +78,12 @@ func TestGetExpire(t *testing.T) {
 	tm.Set(key, val, 50*time.Millisecond)
 	ct := time.Now().Add(50 * time.Millisecond)
 
-	if _, err := tm.GetExpires("keyNotExists"); err != ErrKeyNotFound {
-		t.Fatal("err was not 'key not found': ", err)
-	}
+	_, err := tm.GetExpires("keyNotExists")
+	assert.ErrorIs(t, err, ErrKeyNotFound)
 
 	exp, err := tm.GetExpires(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d := ct.Sub(exp); d > 1*time.Millisecond {
-		t.Fatalf("expire date diff was %d > 1 millisecond", d)
-	}
-
-	tm.Flush()
+	assert.Nil(t, err)
+	assert.Less(t, ct.Sub(exp), 1*time.Millisecond)
 }
 
 func TestSetExpire(t *testing.T) {
@@ -118,31 +91,21 @@ func TestSetExpire(t *testing.T) {
 
 	tm := New(dCleanupTick)
 
-	if err := tm.Refresh("keyNotExists", time.Hour); err == nil || err != ErrKeyNotFound {
-		t.Fatalf("error on non existing key was %v != 'key not found'", err)
-	}
+	err := tm.Refresh("keyNotExists", time.Hour)
+	assert.ErrorIs(t, err, ErrKeyNotFound)
 
-	if err := tm.SetExpire("notExistentKey", 1*time.Second); err != ErrKeyNotFound {
-		t.Errorf("returned error should have been '%s', but was '%s'",
-			ErrKeyNotFound.Error(), err.Error())
-	}
+	err = tm.SetExpire("notExistentKey", 1*time.Second)
+	assert.ErrorIs(t, err, ErrKeyNotFound)
 
 	tm.Set(key, 1, 12*time.Millisecond)
-	if err := tm.SetExpire(key, 50*time.Millisecond); err != nil {
-		t.Fatal(err)
-	}
+	err = tm.SetExpire(key, 50*time.Millisecond)
+	assert.Nil(t, err)
 
 	time.Sleep(30 * time.Millisecond)
-	if v := tm.get(key, 0); v == nil {
-		t.Fatal("key was not refreshed")
-	}
+	assert.NotNil(t, tm.get(key, 0))
 
 	time.Sleep(52 * time.Millisecond)
-	if v := tm.get(key, 0); v != nil {
-		t.Fatal("key was not deleted after refreshed time")
-	}
-
-	tm.Flush()
+	assert.Nil(t, tm.get(key, 0))
 }
 
 func TestContains(t *testing.T) {
@@ -152,20 +115,11 @@ func TestContains(t *testing.T) {
 
 	tm.Set(key, 1, 30*time.Millisecond)
 
-	if tm.Contains("keyNotExists") {
-		t.Fatal("non existing key was detected as containing")
-	}
-
-	if !tm.Contains(key) {
-		t.Fatal("containing key was detected as not containing")
-	}
+	assert.False(t, tm.Contains("keyNotExists"))
+	assert.True(t, tm.Contains(key))
 
 	time.Sleep(50 * time.Millisecond)
-	if tm.Contains(key) {
-		t.Fatal("expired key was detected as containing")
-	}
-
-	tm.Flush()
+	assert.False(t, tm.Contains(key))
 }
 
 func TestRemove(t *testing.T) {
@@ -176,11 +130,7 @@ func TestRemove(t *testing.T) {
 	tm.Set(key, 1, time.Hour)
 	tm.Remove(key)
 
-	if v := tm.get(key, 0); v != nil {
-		t.Fatal("key still exists after remove")
-	}
-
-	tm.Flush()
+	assert.Nil(t, tm.get(key, 0))
 }
 
 func TestRefresh(t *testing.T) {
@@ -188,26 +138,17 @@ func TestRefresh(t *testing.T) {
 
 	tm := New(dCleanupTick)
 
-	if err := tm.Refresh("keyNotExists", time.Hour); err == nil || err != ErrKeyNotFound {
-		t.Fatalf("error on non existing key was %v != 'key not found'", err)
-	}
+	err := tm.Refresh("keyNotExists", time.Hour)
+	assert.ErrorIs(t, err, ErrKeyNotFound)
 
 	tm.Set(key, 1, 12*time.Millisecond)
-	if err := tm.Refresh(key, 50*time.Millisecond); err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, tm.Refresh(key, 50*time.Millisecond))
 
 	time.Sleep(30 * time.Millisecond)
-	if v := tm.get(key, 0); v == nil {
-		t.Fatal("key was not refreshed")
-	}
+	assert.NotNil(t, tm.get(key, 0))
 
 	time.Sleep(100 * time.Millisecond)
-	if v := tm.get(key, 0); v != nil {
-		t.Fatal("key was not deleted after refreshed time")
-	}
-
-	tm.Flush()
+	assert.Nil(t, tm.get(key, 0))
 }
 
 func TestSize(t *testing.T) {
@@ -216,28 +157,21 @@ func TestSize(t *testing.T) {
 	for i := 0; i < 25; i++ {
 		tm.Set(i, 1, 50*time.Millisecond)
 	}
-	if s := tm.Size(); s != 25 {
-		t.Fatalf("size was %d != 25", s)
-	}
-
-	tm.Flush()
+	assert.EqualValues(t, 25, tm.Size())
 }
 
 func TestCallback(t *testing.T) {
+	cb := new(CB)
+	cb.On("Cb").Return()
+
 	tm := New(dCleanupTick)
 
-	var cbCalled bool
-	tm.Set(1, 3, 25*time.Millisecond, func(v interface{}) {
-		cbCalled = true
-	})
+	tm.Set(1, 3, 25*time.Millisecond, cb.Cb)
 
 	time.Sleep(50 * time.Millisecond)
-	if !cbCalled {
-		t.Fatal("callback has not been called")
-	}
-	if v := tm.get(1, 0); v != nil {
-		t.Fatal("key was not deleted after expire time")
-	}
+	assert.Nil(t, tm.get(1, 0))
+	cb.AssertCalled(t, "Cb")
+	assert.EqualValues(t, 3, cb.TestData().Get("v").Int())
 }
 
 func TestStopCleaner(t *testing.T) {
@@ -245,6 +179,21 @@ func TestStopCleaner(t *testing.T) {
 
 	tm.StopCleaner()
 	time.Sleep(10 * time.Millisecond)
+}
+
+func TestSnapshot(t *testing.T) {
+	tm := New(1 * time.Minute)
+
+	for i := 0; i < 10; i++ {
+		tm.set(i, 0, i, 1*time.Minute)
+	}
+
+	m := tm.Snapshot()
+
+	assert.Len(t, m, 10)
+	for i := 0; i < 10; i++ {
+		assert.EqualValues(t, i, m[i])
+	}
 }
 
 func TestConcurrentReadWrite(t *testing.T) {
@@ -266,9 +215,7 @@ func TestConcurrentReadWrite(t *testing.T) {
 		for {
 			for i := 0; i < 100; i++ {
 				v := tm.GetValue(i)
-				if v != i {
-					t.Fatalf("recovered value %d was not %d, like expected", v, i)
-				}
+				assert.EqualValues(t, i, v)
 			}
 		}
 	}()
@@ -305,15 +252,10 @@ func TestExternalTicker(t *testing.T) {
 	tm := New(0, ticker.C)
 
 	tm.Set(key, val, 20*time.Millisecond)
-	if v := tm.get(key, 0); v == nil {
-		t.Fatal("key was not set")
-	} else if v.value.(string) != val {
-		t.Fatal("value was not like set")
-	}
+	assert.Equal(t, val, tm.get(key, 0).value)
+
 	time.Sleep(40 * time.Millisecond)
-	if v := tm.get(key, 0); v != nil {
-		t.Fatal("key was not deleted after expire")
-	}
+	assert.Nil(t, tm.get(key, 0))
 }
 
 func TestBeforeCleanup(t *testing.T) {
@@ -326,9 +268,7 @@ func TestBeforeCleanup(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	_, ok := tm.GetValue(key).(int)
-	if ok {
-		t.Fatal("value got recovered but should have been expired")
-	}
+	assert.False(t, ok)
 }
 
 // ----------------------------------------------------------
@@ -364,4 +304,16 @@ func BenchmarkSetGetSameKey(b *testing.B) {
 		tm.Set(1, n, 1*time.Hour)
 		tm.GetValue(1)
 	}
+}
+
+// ----------------------------------------------------------
+// --- UTILS ---
+
+type CB struct {
+	mock.Mock
+}
+
+func (cb *CB) Cb(v interface{}) {
+	cb.TestData().Set("v", v)
+	cb.Called()
 }
