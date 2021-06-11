@@ -18,6 +18,8 @@ func TestNew(t *testing.T) {
 
 	assert.NotNil(t, tm)
 	assert.EqualValues(t, 0, len(tm.container))
+	time.Sleep(10 * time.Millisecond)
+	assert.True(t, tm.cleanerRunning)
 }
 
 func TestFlush(t *testing.T) {
@@ -182,8 +184,97 @@ func TestCallback(t *testing.T) {
 func TestStopCleaner(t *testing.T) {
 	tm := New(dCleanupTick)
 
+	time.Sleep(10 * time.Millisecond)
 	tm.StopCleaner()
 	time.Sleep(10 * time.Millisecond)
+	assert.False(t, tm.cleanerRunning)
+
+	assert.NotPanics(t, func() {
+		tm.StopCleaner()
+	})
+}
+
+func TestStartCleanerInternal(t *testing.T) {
+	// Test functionality
+	{
+		tm := New(0)
+		time.Sleep(10 * time.Millisecond)
+
+		assert.False(t, tm.cleanerRunning)
+
+		// Ensure cleanup timer is not running
+		tm.set(1, 0, 1, 0)
+		time.Sleep(100 * time.Millisecond)
+		assert.EqualValues(t, 1, tm.getRaw(1, 0).value)
+
+		tm.StartCleanerInternal(dCleanupTick)
+		time.Sleep(10 * time.Millisecond)
+		assert.True(t, tm.cleanerRunning)
+
+		// Ensure cleanup timer is running
+		tm.set(1, 0, 1, 0)
+		time.Sleep(100 * time.Millisecond)
+		assert.Nil(t, tm.getRaw(1, 0))
+	}
+
+	// Test ticker overwrite and cleaner stop
+	{
+		tm := New(dCleanupTick)
+		time.Sleep(10 * time.Millisecond)
+
+		oldTicker := tm.cleanerTicker
+
+		tm.StartCleanerInternal(2 * dCleanupTick)
+		assert.NotEqual(t, oldTicker, tm.cleanerTicker)
+	}
+}
+
+func TestStartCleanerExternal(t *testing.T) {
+	// Test functionality
+	{
+		tm := New(0)
+		time.Sleep(10 * time.Millisecond)
+
+		assert.False(t, tm.cleanerRunning)
+
+		// Ensure cleanup timer is not running
+		tm.set(1, 0, 1, 0)
+		time.Sleep(100 * time.Millisecond)
+		assert.EqualValues(t, 1, tm.getRaw(1, 0).value)
+
+		c := make(chan time.Time)
+
+		tm.StartCleanerExternal(c)
+		time.Sleep(10 * time.Millisecond)
+		assert.True(t, tm.cleanerRunning)
+
+		// Ensure cleanup is controlled by c
+		tm.set(1, 0, 1, 0)
+		time.Sleep(100 * time.Millisecond)
+		assert.NotNil(t, tm.getRaw(1, 0))
+
+		// Ensure cleanup is controlled by c
+		c <- time.Now()
+		time.Sleep(10 * time.Millisecond)
+		assert.Nil(t, tm.getRaw(1, 0))
+	}
+
+	// Ensure timer overwrite
+	{
+		tm := New(dCleanupTick)
+		time.Sleep(10 * time.Millisecond)
+
+		assert.True(t, tm.cleanerRunning)
+		assert.NotNil(t, tm.cleanerTicker)
+
+		c := make(chan time.Time)
+		tm.StartCleanerExternal(c)
+
+		// Ensure cleanup is controlled by c
+		tm.set(1, 0, 1, 0)
+		time.Sleep(100 * time.Millisecond)
+		assert.NotNil(t, tm.getRaw(1, 0))
+	}
 }
 
 func TestSnapshot(t *testing.T) {

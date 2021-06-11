@@ -16,8 +16,9 @@ type TimedMap struct {
 	elementPool *sync.Pool
 
 	cleanupTickTime time.Duration
-	cleaner         *time.Ticker
+	cleanerTicker   *time.Ticker
 	cleanerStopChan chan bool
+	cleanerRunning  bool
 }
 
 type keyWrap struct {
@@ -54,24 +55,11 @@ func New(cleanupTickTime time.Duration, tickerChan ...<-chan time.Time) *TimedMa
 		},
 	}
 
-	var tc <-chan time.Time
 	if len(tickerChan) > 0 {
-		tc = tickerChan[0]
-	} else {
-		tm.cleaner = time.NewTicker(cleanupTickTime)
-		tc = tm.cleaner.C
+		tm.StartCleanerExternal(tickerChan[0])
+	} else if cleanupTickTime > 0 {
+		tm.StartCleanerInternal(cleanupTickTime)
 	}
-
-	go func() {
-		for {
-			select {
-			case <-tc:
-				tm.cleanUp()
-			case <-tm.cleanerStopChan:
-				break
-			}
-		}
-	}()
 
 	return tm
 }
@@ -171,14 +159,44 @@ func (tm *TimedMap) Size() int {
 	return len(tm.container)
 }
 
+// StartCleanerInternal starts the cleanup loop controlled
+// by an internal ticker with the given interval.
+//
+// If the cleanup loop is already running, it will be
+// stopped and restarted using the new specification.
+func (tm *TimedMap) StartCleanerInternal(interval time.Duration) {
+	if tm.cleanerRunning {
+		tm.StopCleaner()
+	}
+	tm.cleanerTicker = time.NewTicker(interval)
+	go tm.cleanupLoop(tm.cleanerTicker.C)
+}
+
+// StartCleanerExternal starts the cleanup loop controlled
+// by the given initiator channel. This is useful if you
+// want to have more control over the cleanup loop or if
+// you want to sync up multiple timedmaps.
+//
+// If the cleanup loop is already running, it will be
+// stopped and restarted using the new specification.
+func (tm *TimedMap) StartCleanerExternal(initiator <-chan time.Time) {
+	if tm.cleanerRunning {
+		tm.StopCleaner()
+	}
+	go tm.cleanupLoop(initiator)
+}
+
 // StopCleaner stops the cleaner go routine and timer.
 // This should always be called after exiting a scope
 // where TimedMap is used that the data can be cleaned
 // up correctly.
 func (tm *TimedMap) StopCleaner() {
+	if !tm.cleanerRunning {
+		return
+	}
 	tm.cleanerStopChan <- true
-	if tm.cleaner != nil {
-		tm.cleaner.Stop()
+	if tm.cleanerTicker != nil {
+		tm.cleanerTicker.Stop()
 	}
 }
 
@@ -186,6 +204,24 @@ func (tm *TimedMap) StopCleaner() {
 // current key-value state of the internal container.
 func (tm *TimedMap) Snapshot() map[interface{}]interface{} {
 	return tm.getSnapshot(0)
+}
+
+// cleanupLoop holds the loop executing the cleanup
+// when initiated by tc.
+func (tm *TimedMap) cleanupLoop(tc <-chan time.Time) {
+	tm.cleanerRunning = true
+	defer func() {
+		tm.cleanerRunning = false
+	}()
+
+	for {
+		select {
+		case <-tc:
+			tm.cleanUp()
+		case <-tm.cleanerStopChan:
+			return
+		}
+	}
 }
 
 // expireElement removes the specified key-value element

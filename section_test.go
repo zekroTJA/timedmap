@@ -99,7 +99,7 @@ func TestSectionGetExpire(t *testing.T) {
 	tm.Flush()
 }
 
-func TestSectionSetExpire(t *testing.T) {
+func TestSectionSetExpires(t *testing.T) {
 	const key = "tKeyRef"
 	const sec = 1
 
