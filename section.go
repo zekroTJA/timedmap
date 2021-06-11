@@ -99,7 +99,7 @@ func (s *section) GetExpires(key interface{}) (time.Time, error) {
 }
 
 func (s *section) SetExpires(key interface{}, d time.Duration) error {
-	return s.tm.setExpire(key, s.sec, d)
+	return s.tm.setExpires(key, s.sec, d)
 }
 
 func (s *section) Contains(key interface{}) bool {

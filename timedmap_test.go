@@ -31,6 +31,11 @@ func TestFlush(t *testing.T) {
 	assert.EqualValues(t, 0, len(tm.container))
 }
 
+func TestIdent(t *testing.T) {
+	tm := New(dCleanupTick)
+	assert.EqualValues(t, 0, tm.Ident())
+}
+
 func TestSet(t *testing.T) {
 	const key = "tKeySet"
 	const val = "tValSet"
@@ -86,7 +91,7 @@ func TestGetExpire(t *testing.T) {
 	assert.Less(t, ct.Sub(exp), 1*time.Millisecond)
 }
 
-func TestSetExpire(t *testing.T) {
+func TestSetExpires(t *testing.T) {
 	const key = "tKeyRef"
 
 	tm := New(dCleanupTick)
@@ -94,11 +99,11 @@ func TestSetExpire(t *testing.T) {
 	err := tm.Refresh("keyNotExists", time.Hour)
 	assert.ErrorIs(t, err, ErrKeyNotFound)
 
-	err = tm.SetExpire("notExistentKey", 1*time.Second)
+	err = tm.SetExpires("notExistentKey", 1*time.Second)
 	assert.ErrorIs(t, err, ErrKeyNotFound)
 
 	tm.Set(key, 1, 12*time.Millisecond)
-	err = tm.SetExpire(key, 50*time.Millisecond)
+	err = tm.SetExpires(key, 50*time.Millisecond)
 	assert.Nil(t, err)
 
 	time.Sleep(30 * time.Millisecond)

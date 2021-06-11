@@ -11,9 +11,10 @@ type callback func(value interface{})
 // and a timer, which cleans the map in the set
 // tick durations from expired keys.
 type TimedMap struct {
-	mtx             sync.RWMutex
-	container       map[keyWrap]*element
-	elementPool     *sync.Pool
+	mtx         sync.RWMutex
+	container   map[keyWrap]*element
+	elementPool *sync.Pool
+
 	cleanupTickTime time.Duration
 	cleaner         *time.Ticker
 	cleanerStopChan chan bool
@@ -122,16 +123,16 @@ func (tm *TimedMap) GetExpires(key interface{}) (time.Time, error) {
 }
 
 // SetExpire is deprecated.
-// Please use SetExpire instead.
+// Please use SetExpires instead.
 func (tm *TimedMap) SetExpire(key interface{}, d time.Duration) error {
-	return tm.setExpire(key, 0, d)
+	return tm.SetExpires(key, d)
 }
 
 // SetExpires sets the expire time for a key-value
 // pair to the passed duration. If there is no value
 // to the key passed , this will return an error.
 func (tm *TimedMap) SetExpires(key interface{}, d time.Duration) error {
-	return tm.setExpire(key, 0, d)
+	return tm.setExpires(key, 0, d)
 }
 
 // Contains returns true, if the key exists in the map.
@@ -313,9 +314,9 @@ func (tm *TimedMap) refresh(key interface{}, sec int, d time.Duration) error {
 	return nil
 }
 
-// setExpire sets the lifetime of the given key in the
+// setExpires sets the lifetime of the given key in the
 // given section to the duration d.
-func (tm *TimedMap) setExpire(key interface{}, sec int, d time.Duration) error {
+func (tm *TimedMap) setExpires(key interface{}, sec int, d time.Duration) error {
 	v := tm.get(key, sec)
 	if v == nil {
 		return ErrKeyNotFound

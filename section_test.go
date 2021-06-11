@@ -29,6 +29,14 @@ func TestSectionFlush(t *testing.T) {
 	assert.EqualValues(t, 0, len(tm.container))
 }
 
+func TestSectionIdent(t *testing.T) {
+	tm := New(dCleanupTick)
+
+	assert.EqualValues(t, 1, tm.Section(1).Ident())
+	assert.EqualValues(t, 2, tm.Section(2).Ident())
+	assert.EqualValues(t, 3, tm.Section(3).Ident())
+}
+
 func TestSectionSet(t *testing.T) {
 	const key = "tKeySet"
 	const val = "tValSet"
@@ -99,7 +107,7 @@ func TestSectionSetExpire(t *testing.T) {
 
 	s := tm.Section(sec)
 
-	if err := tm.SetExpire("notExistentKey", 1*time.Second); err != ErrKeyNotFound {
+	if err := tm.SetExpires("notExistentKey", 1*time.Second); err != ErrKeyNotFound {
 		t.Errorf("returned error should have been '%s', but was '%s'",
 			ErrKeyNotFound.Error(), err.Error())
 	}
@@ -188,4 +196,23 @@ func TestSectionCallback(t *testing.T) {
 	assert.Nil(t, tm.get(1, 0))
 	cb.AssertCalled(t, "Cb")
 	assert.EqualValues(t, 3, cb.TestData().Get("v").Int())
+}
+
+func TestSectionSnapshot(t *testing.T) {
+	tm := New(1 * time.Minute)
+
+	for i := 0; i < 10; i++ {
+		tm.set(i, i%2, i, 1*time.Minute)
+	}
+
+	m := tm.Section(1).Snapshot()
+
+	assert.Len(t, m, 5)
+	for i := 0; i < 10; i++ {
+		if i%2 == 1 {
+			assert.EqualValues(t, i, m[i])
+		} else {
+			assert.Nil(t, m[i])
+		}
+	}
 }
