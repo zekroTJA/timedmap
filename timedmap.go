@@ -38,12 +38,20 @@ type element struct {
 
 // New creates and returns a new instance of TimedMap.
 // The passed cleanupTickTime will be passed to the
-// cleanup Timer, which iterates through the map and
+// cleanup ticker, which iterates through the map and
 // deletes expired key-value pairs.
 //
 // Optionally, you can also pass a custom <-chan time.Time
 // which controls the cleanup cycle if you want to use
-// a single syncronyzed timer or something like that.
+// a single syncronyzed timer or if you want to have more
+// control over the cleanup loop.
+//
+// When passing 0 as cleanupTickTime and no tickerChan,
+// the cleanup loop will not be started. You can call
+// StartCleanerInternal or StartCleanerExternal to
+// manually start the cleanup loop. These both methods
+// can also be used to re-define the specification of
+// the cleanup loop when already running if you want to.
 func New(cleanupTickTime time.Duration, tickerChan ...<-chan time.Time) *TimedMap {
 	tm := &TimedMap{
 		container:       make(map[keyWrap]*element),
