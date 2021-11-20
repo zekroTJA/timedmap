@@ -6,7 +6,7 @@ import (
 
 // Section defines a sectioned access
 // wrapper of TimedMap.
-type Section interface {
+type Section[TKey comparable, TVal any] interface {
 
 	// Ident returns the current sections identifier
 	Ident() int
@@ -14,35 +14,35 @@ type Section interface {
 	// Set appends a key-value pair to the map or sets the value of
 	// a key. expiresAfter sets the expire time after the key-value pair
 	// will automatically be removed from the map.
-	Set(key, value interface{}, expiresAfter time.Duration, cb ...callback)
+	Set(key TKey, value TVal, expiresAfter time.Duration, cb ...callback)
 
 	// GetValue returns an interface of the value of a key in the
 	// map. The returned value is nil if there is no value to the
 	// passed key or if the value was expired.
-	GetValue(key interface{}) interface{}
+	GetValue(key TKey) TVal
 
 	// GetExpires returns the expire time of a key-value pair.
 	// If the key-value pair does not exist in the map or
 	// was expired, this will return an error object.
-	GetExpires(key interface{}) (time.Time, error)
+	GetExpires(key TKey) (time.Time, error)
 
 	// SetExpires sets the expire time for a key-value
 	// pair to the passed duration. If there is no value
 	// to the key passed , this will return an error.
-	SetExpires(key interface{}, d time.Duration) error
+	SetExpires(key TKey, d time.Duration) error
 
 	// Contains returns true, if the key exists in the map.
 	// false will be returned, if there is no value to the
 	// key or if the key-value pair was expired.
-	Contains(key interface{}) bool
+	Contains(key TKey) bool
 
 	// Remove deletes a key-value pair in the map.
-	Remove(key interface{})
+	Remove(key TKey)
 
 	// Refresh extends the expire time for a key-value pair
 	// about the passed duration. If there is no value to
 	// the key passed, this will return an error.
-	Refresh(key interface{}, d time.Duration) error
+	Refresh(key TKey, d time.Duration) error
 
 	// Flush deletes all key-value pairs of the section
 	// in the map.
@@ -54,43 +54,43 @@ type Section interface {
 
 	// Snapshot returns a new map which represents the
 	// current key-value state of the internal container.
-	Snapshot() map[interface{}]interface{}
+	Snapshot() map[TKey]TVal
 }
 
 // section wraps access to a specific
 // section of the map.
-type section struct {
-	tm  *TimedMap
+type section[TKey comparable, TVal any] struct {
+	tm  *TimedMap[TKey, TVal]
 	sec int
 }
 
 // newSection creates a new Section instance
 // wrapping the given TimedMap instance and
 // section identifier.
-func newSection(tm *TimedMap, sec int) *section {
-	return &section{
+func newSection[TKey comparable, TVal any](tm *TimedMap[TKey, TVal], sec int) *section[TKey, TVal] {
+	return &section[TKey, TVal]{
 		tm:  tm,
 		sec: sec,
 	}
 }
 
-func (s *section) Ident() int {
+func (s *section[TKey, TVal]) Ident() int {
 	return s.sec
 }
 
-func (s *section) Set(key, value interface{}, expiresAfter time.Duration, cb ...callback) {
+func (s *section[TKey, TVal]) Set(key TKey, value TVal, expiresAfter time.Duration, cb ...callback) {
 	s.tm.set(key, s.sec, value, expiresAfter, cb...)
 }
 
-func (s *section) GetValue(key interface{}) interface{} {
+func (s *section[TKey, TVal]) GetValue(key TKey) (val TVal) {
 	v := s.tm.get(key, s.sec)
-	if v == nil {
-		return nil
+	if v != nil {
+		val = v.value
 	}
-	return v.value
+	return
 }
 
-func (s *section) GetExpires(key interface{}) (time.Time, error) {
+func (s *section[TKey, TVal]) GetExpires(key TKey) (time.Time, error) {
 	v := s.tm.get(key, s.sec)
 	if v == nil {
 		return time.Time{}, ErrKeyNotFound
@@ -98,23 +98,23 @@ func (s *section) GetExpires(key interface{}) (time.Time, error) {
 	return v.expires, nil
 }
 
-func (s *section) SetExpires(key interface{}, d time.Duration) error {
+func (s *section[TKey, TVal]) SetExpires(key TKey, d time.Duration) error {
 	return s.tm.setExpires(key, s.sec, d)
 }
 
-func (s *section) Contains(key interface{}) bool {
+func (s *section[TKey, TVal]) Contains(key TKey) bool {
 	return s.tm.get(key, s.sec) != nil
 }
 
-func (s *section) Remove(key interface{}) {
+func (s *section[TKey, TVal]) Remove(key TKey) {
 	s.tm.remove(key, s.sec)
 }
 
-func (s *section) Refresh(key interface{}, d time.Duration) error {
+func (s *section[TKey, TVal]) Refresh(key TKey, d time.Duration) error {
 	return s.tm.refresh(key, s.sec, d)
 }
 
-func (s *section) Flush() {
+func (s *section[TKey, TVal]) Flush() {
 	for k := range s.tm.container {
 		if k.sec == s.sec {
 			s.tm.remove(k.key, k.sec)
@@ -122,7 +122,7 @@ func (s *section) Flush() {
 	}
 }
 
-func (s *section) Size() (i int) {
+func (s *section[TKey, TVal]) Size() (i int) {
 	for k := range s.tm.container {
 		if k.sec == s.sec {
 			i++
@@ -131,6 +131,6 @@ func (s *section) Size() (i int) {
 	return
 }
 
-func (s *section) Snapshot() map[interface{}]interface{} {
+func (s *section[TKey, TVal]) Snapshot() map[TKey]TVal {
 	return s.tm.getSnapshot(s.sec)
 }

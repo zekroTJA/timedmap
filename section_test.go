@@ -8,7 +8,7 @@ import (
 )
 
 func TestSectionFlush(t *testing.T) {
-	tm := New(dCleanupTick)
+	tm := New[int, int](dCleanupTick)
 
 	for i := 0; i < 5; i++ {
 		tm.set(i, 0, 1, time.Hour)
@@ -30,7 +30,7 @@ func TestSectionFlush(t *testing.T) {
 }
 
 func TestSectionIdent(t *testing.T) {
-	tm := New(dCleanupTick)
+	tm := New[int, int](dCleanupTick)
 
 	assert.EqualValues(t, 1, tm.Section(1).Ident())
 	assert.EqualValues(t, 2, tm.Section(2).Ident())
@@ -42,7 +42,7 @@ func TestSectionSet(t *testing.T) {
 	const val = "tValSet"
 	const sec = 1
 
-	tm := New(dCleanupTick)
+	tm := New[string, string](dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -58,23 +58,23 @@ func TestSectionGetValue(t *testing.T) {
 	const val = "tValGetVal"
 	const sec = 1
 
-	tm := New(dCleanupTick)
+	tm := New[string, string](dCleanupTick)
 
 	s := tm.Section(sec)
 
 	s.Set(key, val, 50*time.Millisecond)
 
-	assert.Nil(t, s.GetValue("keyNotExists"))
+	assert.Equal(t, "", s.GetValue("keyNotExists"))
 
 	assert.Equal(t, val, s.GetValue(key))
 
 	time.Sleep(60 * time.Millisecond)
 
-	assert.Nil(t, s.GetValue(key))
+	assert.Equal(t, "", s.GetValue(key))
 
 	s.Set(key, val, 1*time.Microsecond)
 	time.Sleep(2 * time.Millisecond)
-	assert.Nil(t, s.GetValue(key))
+	assert.Equal(t, "", s.GetValue(key))
 }
 
 func TestSectionGetExpire(t *testing.T) {
@@ -82,7 +82,7 @@ func TestSectionGetExpire(t *testing.T) {
 	const val = "tValGetExp"
 	const sec = 1
 
-	tm := New(dCleanupTick)
+	tm := New[string, string](dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -103,7 +103,7 @@ func TestSectionSetExpires(t *testing.T) {
 	const key = "tKeyRef"
 	const sec = 1
 
-	tm := New(dCleanupTick)
+	tm := New[string, int](dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -126,7 +126,7 @@ func TestSectionContains(t *testing.T) {
 	const key = "tKeyCont"
 	const sec = 1
 
-	tm := New(dCleanupTick)
+	tm := New[string, int](dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -143,7 +143,7 @@ func TestSectionRemove(t *testing.T) {
 	const key = "tKeyRem"
 	const sec = 1
 
-	tm := New(dCleanupTick)
+	tm := New[string, int](dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -156,7 +156,7 @@ func TestSectionRefresh(t *testing.T) {
 	const key = "tKeyRef"
 	const sec = 1
 
-	tm := New(dCleanupTick)
+	tm := New[string, int](dCleanupTick)
 
 	s := tm.Section(sec)
 
@@ -173,7 +173,7 @@ func TestSectionRefresh(t *testing.T) {
 }
 
 func TestSectionSize(t *testing.T) {
-	tm := New(dCleanupTick)
+	tm := New[int, int](dCleanupTick)
 
 	for i := 0; i < 20; i++ {
 		tm.set(i, 0, 1, 50*time.Millisecond)
@@ -188,7 +188,7 @@ func TestSectionCallback(t *testing.T) {
 	cb := new(CB)
 	cb.On("Cb").Return()
 
-	tm := New(dCleanupTick)
+	tm := New[int, int](dCleanupTick)
 
 	tm.Section(1).Set(1, 3, 25*time.Millisecond, cb.Cb)
 
@@ -199,7 +199,7 @@ func TestSectionCallback(t *testing.T) {
 }
 
 func TestSectionSnapshot(t *testing.T) {
-	tm := New(1 * time.Minute)
+	tm := New[int, int](1 * time.Minute)
 
 	for i := 0; i < 10; i++ {
 		tm.set(i, i%2, i, 1*time.Minute)
@@ -212,7 +212,7 @@ func TestSectionSnapshot(t *testing.T) {
 		if i%2 == 1 {
 			assert.EqualValues(t, i, m[i])
 		} else {
-			assert.Nil(t, m[i])
+			assert.Equal(t, 0, m[i])
 		}
 	}
 }

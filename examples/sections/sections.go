@@ -16,7 +16,7 @@ func main() {
 
 	// Creates a new timed map which scans for
 	// expired keys every 1 second
-	tm := timedmap.New(1 * time.Second)
+	tm := timedmap.New[string, int](1 * time.Second)
 
 	// Get sections 0 and 1
 	sec0 := tm.Section(0)
@@ -28,7 +28,7 @@ func main() {
 	})
 
 	// set value for key 'ho' in section 1
-	sec1.Set("ho", &myData{data: "ho"}, 4*time.Second, func(v interface{}) {
+	sec1.Set("ho", 342, 4*time.Second, func(v interface{}) {
 		log.Println("key-value pair of 'ho' has expired")
 	})
 
@@ -55,9 +55,10 @@ func main() {
 	printKeyVal(sec1, "ho")
 }
 
-func printKeyVal(s timedmap.Section, key interface{}) {
+func printKeyVal(s timedmap.Section[string, int], key string) {
+	// TODO: replace with exists
 	d := s.GetValue(key)
-	if d == nil {
+	if d == 0 {
 		log.Printf(
 			"data expired or section [%d] does not contain a value for '%v'",
 			s.Ident(), key)
