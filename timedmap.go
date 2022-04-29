@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type callback func(value interface{})
+type Callback[T any] func(value T)
 
 // TimedMap contains a map with all key-value pairs,
 // and a timer, which cleans the map in the set
@@ -33,7 +33,7 @@ type keyWrap[TKey comparable] struct {
 type element[TVal any] struct {
 	value   TVal
 	expires time.Time
-	cbs     []callback
+	cbs     []Callback[TVal]
 }
 
 // New creates and returns a new instance of TimedMap.
@@ -92,7 +92,12 @@ func (tm *TimedMap[TKey, TVal]) Ident() int {
 // Set appends a key-value pair to the map or sets the value of
 // a key. expiresAfter sets the expire time after the key-value pair
 // will automatically be removed from the map.
-func (tm *TimedMap[TKey, TVal]) Set(key TKey, value TVal, expiresAfter time.Duration, cb ...callback) {
+func (tm *TimedMap[TKey, TVal]) Set(
+	key TKey,
+	value TVal,
+	expiresAfter time.Duration,
+	cb ...Callback[TVal],
+) {
 	tm.set(key, 0, value, expiresAfter, cb...)
 }
 
@@ -265,7 +270,13 @@ func (tm *TimedMap[TKey, TVal]) cleanUp() {
 
 // set sets the value for a key and section with the
 // given expiration parameters
-func (tm *TimedMap[TKey, TVal]) set(key TKey, sec int, val TVal, expiresAfter time.Duration, cb ...callback) {
+func (tm *TimedMap[TKey, TVal]) set(
+	key TKey,
+	sec int,
+	val TVal,
+	expiresAfter time.Duration,
+	cb ...Callback[TVal],
+) {
 	// re-use element when existent on this key
 	if v := tm.getRaw(key, sec); v != nil {
 		v.value = val

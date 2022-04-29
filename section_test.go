@@ -185,7 +185,7 @@ func TestSectionSize(t *testing.T) {
 }
 
 func TestSectionCallback(t *testing.T) {
-	cb := new(CB)
+	cb := new(CB[int])
 	cb.On("Cb").Return()
 
 	tm := New[int, int](dCleanupTick)

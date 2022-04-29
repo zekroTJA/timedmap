@@ -16,7 +16,7 @@ func main() {
 	// Add a key "hey" with the value 213, which should
 	// expire after 3 seconds and execute the callback, which
 	// prints that the key was expired
-	tm.Set("hey", 213, 3*time.Second, func(v interface{}) {
+	tm.Set("hey", 213, 3*time.Second, func(v int) {
 		log.Println("key-value pair of 'hey' has expired")
 	})
 

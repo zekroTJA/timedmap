@@ -14,7 +14,7 @@ type Section[TKey comparable, TVal any] interface {
 	// Set appends a key-value pair to the map or sets the value of
 	// a key. expiresAfter sets the expire time after the key-value pair
 	// will automatically be removed from the map.
-	Set(key TKey, value TVal, expiresAfter time.Duration, cb ...callback)
+	Set(key TKey, value TVal, expiresAfter time.Duration, cb ...Callback[TVal])
 
 	// GetValue returns an interface of the value of a key in the
 	// map. The returned value is nil if there is no value to the
@@ -78,7 +78,12 @@ func (s *section[TKey, TVal]) Ident() int {
 	return s.sec
 }
 
-func (s *section[TKey, TVal]) Set(key TKey, value TVal, expiresAfter time.Duration, cb ...callback) {
+func (s *section[TKey, TVal]) Set(
+	key TKey,
+	value TVal,
+	expiresAfter time.Duration,
+	cb ...Callback[TVal],
+) {
 	s.tm.set(key, s.sec, value, expiresAfter, cb...)
 }
 

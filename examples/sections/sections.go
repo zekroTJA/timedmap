@@ -23,12 +23,12 @@ func main() {
 	sec1 := tm.Section(1)
 
 	// set value for key 'hey' in section 0
-	sec0.Set("hey", 213, 3*time.Second, func(v interface{}) {
+	sec0.Set("hey", 213, 3*time.Second, func(v int) {
 		log.Println("key-value pair of 'hey' has expired")
 	})
 
 	// set value for key 'ho' in section 1
-	sec1.Set("ho", 342, 4*time.Second, func(v interface{}) {
+	sec1.Set("ho", 342, 4*time.Second, func(v int) {
 		log.Println("key-value pair of 'ho' has expired")
 	})
 

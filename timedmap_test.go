@@ -168,7 +168,7 @@ func TestSize(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
-	cb := new(CB)
+	cb := new(CB[int])
 	cb.On("Cb").Return()
 
 	tm := New[int, int](dCleanupTick)
@@ -405,11 +405,11 @@ func BenchmarkSetGetSameKey(b *testing.B) {
 // ----------------------------------------------------------
 // --- UTILS ---
 
-type CB struct {
+type CB[TVal any] struct {
 	mock.Mock
 }
 
-func (cb *CB) Cb(v interface{}) {
+func (cb *CB[TVal]) Cb(v TVal) {
 	cb.TestData().Set("v", v)
 	cb.Called()
 }
