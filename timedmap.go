@@ -1,6 +1,7 @@
 package timedmap
 
 import (
+	"reflect"
 	"sync"
 	"time"
 )
@@ -53,23 +54,39 @@ type element struct {
 // can also be used to re-define the specification of
 // the cleanup loop when already running if you want to.
 func New(cleanupTickTime time.Duration, tickerChan ...<-chan time.Time) *TimedMap {
-	tm := &TimedMap{
-		container:       make(map[keyWrap]*element),
-		cleanerStopChan: make(chan bool),
-		elementPool: &sync.Pool{
-			New: func() interface{} {
-				return new(element)
-			},
-		},
+	return newTimedMap(make(map[keyWrap]*element), cleanupTickTime, tickerChan)
+}
+
+func FromMap(
+	m interface{},
+	expiration time.Duration,
+	cleanupTickTime time.Duration,
+	tickerChan ...<-chan time.Time,
+) (*TimedMap, error) {
+	mv := reflect.ValueOf(m)
+	if mv.Kind() != reflect.Map {
+		return nil, ErrValueNoMap
 	}
 
-	if len(tickerChan) > 0 {
-		tm.StartCleanerExternal(tickerChan[0])
-	} else if cleanupTickTime > 0 {
-		tm.StartCleanerInternal(cleanupTickTime)
+	exp := time.Now().Add(expiration)
+	container := make(map[keyWrap]*element)
+
+	iter := mv.MapRange()
+	for iter.Next() {
+		key := iter.Key()
+		val := iter.Value()
+		kw := keyWrap{
+			sec: 0,
+			key: key.Interface(),
+		}
+		el := &element{
+			value:   val.Interface(),
+			expires: exp,
+		}
+		container[kw] = el
 	}
 
-	return tm
+	return newTimedMap(container, cleanupTickTime, tickerChan), nil
 }
 
 // Section returns a sectioned subset of
@@ -382,4 +399,28 @@ func (tm *TimedMap) getSnapshot(sec int) (m map[interface{}]interface{}) {
 	}
 
 	return
+}
+
+func newTimedMap(
+	container map[keyWrap]*element,
+	cleanupTickTime time.Duration,
+	tickerChan []<-chan time.Time,
+) *TimedMap {
+	tm := &TimedMap{
+		container:       container,
+		cleanerStopChan: make(chan bool),
+		elementPool: &sync.Pool{
+			New: func() interface{} {
+				return new(element)
+			},
+		},
+	}
+
+	if len(tickerChan) > 0 {
+		tm.StartCleanerExternal(tickerChan[0])
+	} else if cleanupTickTime > 0 {
+		tm.StartCleanerInternal(cleanupTickTime)
+	}
+
+	return tm
 }

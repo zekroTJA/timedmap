@@ -22,6 +22,65 @@ func TestNew(t *testing.T) {
 	assert.True(t, tm.cleanerRunning)
 }
 
+func TestFromMap(t *testing.T) {
+	t.Run("map-string-string", func(t *testing.T) {
+		tm, err := FromMap(
+			map[string]string{"foo": "bar", "bazz": "fuzz"},
+			200*time.Millisecond, 10*time.Millisecond)
+		assert.Nil(t, err)
+
+		assert.EqualValues(t, "bar", tm.GetValue("foo"))
+		assert.EqualValues(t, "fuzz", tm.GetValue("bazz"))
+
+		time.Sleep(500 * time.Millisecond)
+
+		assert.False(t, tm.Contains("foo"))
+		assert.False(t, tm.Contains("bazz"))
+	})
+
+	t.Run("map-int-interface", func(t *testing.T) {
+		tm, err := FromMap(
+			map[int]interface{}{1: "foo", 2: 3.456},
+			200*time.Millisecond, 10*time.Millisecond)
+		assert.Nil(t, err)
+
+		assert.EqualValues(t, "foo", tm.GetValue(1))
+		assert.EqualValues(t, 3.456, tm.GetValue(2))
+
+		time.Sleep(500 * time.Millisecond)
+
+		assert.False(t, tm.Contains(1))
+		assert.False(t, tm.Contains(2))
+	})
+
+	t.Run("map-interface-interface", func(t *testing.T) {
+		tm, err := FromMap(
+			map[interface{}]interface{}{1: "foo", "a": 3.456},
+			200*time.Millisecond, 10*time.Millisecond)
+		assert.Nil(t, err)
+
+		assert.EqualValues(t, "foo", tm.GetValue(1))
+		assert.EqualValues(t, 3.456, tm.GetValue("a"))
+
+		time.Sleep(500 * time.Millisecond)
+
+		assert.False(t, tm.Contains(1))
+		assert.False(t, tm.Contains("a"))
+	})
+
+	t.Run("non-map", func(t *testing.T) {
+		_, err := FromMap(
+			"this is not a map",
+			200*time.Millisecond, 10*time.Millisecond)
+		assert.ErrorIs(t, err, ErrValueNoMap)
+
+		_, err = FromMap(
+			nil,
+			200*time.Millisecond, 10*time.Millisecond)
+		assert.ErrorIs(t, err, ErrValueNoMap)
+	})
+}
+
 func TestFlush(t *testing.T) {
 	tm := New(dCleanupTick)
 
