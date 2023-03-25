@@ -57,6 +57,12 @@ func New(cleanupTickTime time.Duration, tickerChan ...<-chan time.Time) *TimedMa
 	return newTimedMap(make(map[keyWrap]*element), cleanupTickTime, tickerChan)
 }
 
+// FromMap creates a new TimedMap containing the given
+// keys and values from the passed map m. All key-value
+// pairs will be assigned the given expiration.
+//
+// Returns ErrValueNoMap if the given value for m is
+// not of type map.
 func FromMap(
 	m interface{},
 	expiration time.Duration,
