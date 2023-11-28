@@ -122,6 +122,8 @@ func (tm *TimedMap) GetValue(key interface{}) interface{} {
 	if v == nil {
 		return nil
 	}
+	tm.mtx.RLock()
+	defer tm.mtx.RUnlock()
 	return v.value
 }
 
