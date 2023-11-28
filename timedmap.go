@@ -3,6 +3,7 @@ package timedmap
 import (
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -19,7 +20,7 @@ type TimedMap struct {
 	cleanupTickTime time.Duration
 	cleanerTicker   *time.Ticker
 	cleanerStopChan chan bool
-	cleanerRunning  bool
+	cleanerRunning  atomic.Bool
 }
 
 type keyWrap struct {
@@ -190,7 +191,7 @@ func (tm *TimedMap) Size() int {
 // If the cleanup loop is already running, it will be
 // stopped and restarted using the new specification.
 func (tm *TimedMap) StartCleanerInternal(interval time.Duration) {
-	if tm.cleanerRunning {
+	if tm.cleanerRunning.Load() {
 		tm.StopCleaner()
 	}
 	tm.cleanerTicker = time.NewTicker(interval)
@@ -205,7 +206,7 @@ func (tm *TimedMap) StartCleanerInternal(interval time.Duration) {
 // If the cleanup loop is already running, it will be
 // stopped and restarted using the new specification.
 func (tm *TimedMap) StartCleanerExternal(initiator <-chan time.Time) {
-	if tm.cleanerRunning {
+	if tm.cleanerRunning.Load() {
 		tm.StopCleaner()
 	}
 	go tm.cleanupLoop(initiator)
@@ -216,7 +217,7 @@ func (tm *TimedMap) StartCleanerExternal(initiator <-chan time.Time) {
 // where TimedMap is used that the data can be cleaned
 // up correctly.
 func (tm *TimedMap) StopCleaner() {
-	if !tm.cleanerRunning {
+	if !tm.cleanerRunning.Load() {
 		return
 	}
 	tm.cleanerStopChan <- true
@@ -234,9 +235,9 @@ func (tm *TimedMap) Snapshot() map[interface{}]interface{} {
 // cleanupLoop holds the loop executing the cleanup
 // when initiated by tc.
 func (tm *TimedMap) cleanupLoop(tc <-chan time.Time) {
-	tm.cleanerRunning = true
+	tm.cleanerRunning.Store(true)
 	defer func() {
-		tm.cleanerRunning = false
+		tm.cleanerRunning.Store(false)
 	}()
 
 	for {
@@ -285,6 +286,8 @@ func (tm *TimedMap) cleanUp() {
 func (tm *TimedMap) set(key interface{}, sec int, val interface{}, expiresAfter time.Duration, cb ...callback) {
 	// re-use element when existent on this key
 	if v := tm.getRaw(key, sec); v != nil {
+		tm.mtx.Lock()
+		defer tm.mtx.Unlock()
 		v.value = val
 		v.expires = time.Now().Add(expiresAfter)
 		v.cbs = cb
@@ -315,9 +318,10 @@ func (tm *TimedMap) get(key interface{}, sec int) *element {
 		return nil
 	}
 
+	tm.mtx.Lock()
+	defer tm.mtx.Unlock()
+
 	if time.Now().After(v.expires) {
-		tm.mtx.Lock()
-		defer tm.mtx.Unlock()
 		tm.expireElement(key, sec, v)
 		return nil
 	}
@@ -371,7 +375,9 @@ func (tm *TimedMap) refresh(key interface{}, sec int, d time.Duration) error {
 	if v == nil {
 		return ErrKeyNotFound
 	}
+	tm.mtx.Lock()
 	v.expires = v.expires.Add(d)
+	tm.mtx.Unlock()
 	return nil
 }
 
@@ -382,7 +388,9 @@ func (tm *TimedMap) setExpires(key interface{}, sec int, d time.Duration) error 
 	if v == nil {
 		return ErrKeyNotFound
 	}
+	tm.mtx.Lock()
 	v.expires = time.Now().Add(d)
+	tm.mtx.Unlock()
 	return nil
 }
 

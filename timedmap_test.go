@@ -19,7 +19,7 @@ func TestNew(t *testing.T) {
 	assert.NotNil(t, tm)
 	assert.EqualValues(t, 0, len(tm.container))
 	time.Sleep(10 * time.Millisecond)
-	assert.True(t, tm.cleanerRunning)
+	assert.True(t, tm.cleanerRunning.Load())
 }
 
 func TestFromMap(t *testing.T) {
@@ -246,7 +246,7 @@ func TestStopCleaner(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	tm.StopCleaner()
 	time.Sleep(10 * time.Millisecond)
-	assert.False(t, tm.cleanerRunning)
+	assert.False(t, tm.cleanerRunning.Load())
 
 	assert.NotPanics(t, func() {
 		tm.StopCleaner()
@@ -259,7 +259,7 @@ func TestStartCleanerInternal(t *testing.T) {
 		tm := New(0)
 		time.Sleep(10 * time.Millisecond)
 
-		assert.False(t, tm.cleanerRunning)
+		assert.False(t, tm.cleanerRunning.Load())
 
 		// Ensure cleanup timer is not running
 		tm.set(1, 0, 1, 0)
@@ -268,7 +268,7 @@ func TestStartCleanerInternal(t *testing.T) {
 
 		tm.StartCleanerInternal(dCleanupTick)
 		time.Sleep(10 * time.Millisecond)
-		assert.True(t, tm.cleanerRunning)
+		assert.True(t, tm.cleanerRunning.Load())
 
 		// Ensure cleanup timer is running
 		tm.set(1, 0, 1, 0)
@@ -294,7 +294,7 @@ func TestStartCleanerExternal(t *testing.T) {
 		tm := New(0)
 		time.Sleep(10 * time.Millisecond)
 
-		assert.False(t, tm.cleanerRunning)
+		assert.False(t, tm.cleanerRunning.Load())
 
 		// Ensure cleanup timer is not running
 		tm.set(1, 0, 1, 0)
@@ -305,7 +305,7 @@ func TestStartCleanerExternal(t *testing.T) {
 
 		tm.StartCleanerExternal(c)
 		time.Sleep(10 * time.Millisecond)
-		assert.True(t, tm.cleanerRunning)
+		assert.True(t, tm.cleanerRunning.Load())
 
 		// Ensure cleanup is controlled by c
 		tm.set(1, 0, 1, 0)
@@ -323,7 +323,7 @@ func TestStartCleanerExternal(t *testing.T) {
 		tm := New(dCleanupTick)
 		time.Sleep(10 * time.Millisecond)
 
-		assert.True(t, tm.cleanerRunning)
+		assert.True(t, tm.cleanerRunning.Load())
 		assert.NotNil(t, tm.cleanerTicker)
 
 		c := make(chan time.Time)
