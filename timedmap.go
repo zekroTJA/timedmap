@@ -20,7 +20,7 @@ type TimedMap struct {
 	cleanupTickTime time.Duration
 	cleanerTicker   *time.Ticker
 	cleanerStopChan chan bool
-	cleanerRunning  atomic.Bool
+	cleanerRunning  *uint32
 }
 
 type keyWrap struct {
@@ -193,7 +193,7 @@ func (tm *TimedMap) Size() int {
 // If the cleanup loop is already running, it will be
 // stopped and restarted using the new specification.
 func (tm *TimedMap) StartCleanerInternal(interval time.Duration) {
-	if tm.cleanerRunning.Load() {
+	if atomic.LoadUint32(tm.cleanerRunning) != 0 {
 		tm.StopCleaner()
 	}
 	tm.cleanerTicker = time.NewTicker(interval)
@@ -208,7 +208,7 @@ func (tm *TimedMap) StartCleanerInternal(interval time.Duration) {
 // If the cleanup loop is already running, it will be
 // stopped and restarted using the new specification.
 func (tm *TimedMap) StartCleanerExternal(initiator <-chan time.Time) {
-	if tm.cleanerRunning.Load() {
+	if atomic.LoadUint32(tm.cleanerRunning) != 0 {
 		tm.StopCleaner()
 	}
 	go tm.cleanupLoop(initiator)
@@ -219,7 +219,7 @@ func (tm *TimedMap) StartCleanerExternal(initiator <-chan time.Time) {
 // where TimedMap is used that the data can be cleaned
 // up correctly.
 func (tm *TimedMap) StopCleaner() {
-	if !tm.cleanerRunning.Load() {
+	if atomic.LoadUint32(tm.cleanerRunning) == 0 {
 		return
 	}
 	tm.cleanerStopChan <- true
@@ -237,9 +237,9 @@ func (tm *TimedMap) Snapshot() map[interface{}]interface{} {
 // cleanupLoop holds the loop executing the cleanup
 // when initiated by tc.
 func (tm *TimedMap) cleanupLoop(tc <-chan time.Time) {
-	tm.cleanerRunning.Store(true)
+	atomic.StoreUint32(tm.cleanerRunning, 1)
 	defer func() {
-		tm.cleanerRunning.Store(false)
+		atomic.StoreUint32(tm.cleanerRunning, 0)
 	}()
 
 	for {
@@ -418,6 +418,7 @@ func newTimedMap(
 ) *TimedMap {
 	tm := &TimedMap{
 		container:       container,
+		cleanerRunning:  new(uint32),
 		cleanerStopChan: make(chan bool),
 		elementPool: &sync.Pool{
 			New: func() interface{} {
